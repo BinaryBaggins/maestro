@@ -26,7 +26,7 @@
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-				<version>3.14.1</version>
+				<version>3.15.0</version>
 				<configuration>
 					<encoding>${project.build.sourceEncoding}</encoding>
 				    <source>21</source>
@@ -40,7 +40,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.5.4</version>
+				<version>3.5.6</version>
 				<configuration>
 					<includes>
 						<include>**/*Test.java</include>
@@ -55,7 +55,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>3.7.1</version>
+				<version>3.8.0</version>
 				<configuration>
 				</configuration>
 				<executions>
@@ -171,7 +171,7 @@
 		<dependency>
 			<groupId>com.formdev</groupId>
 			<artifactId>flatlaf</artifactId>
-			<version>3.6</version>
+			<version>3.7.1</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/info.clearthought/table-layout/4.3.0 -->
 		<dependency>
@@ -183,19 +183,19 @@
 		<dependency>
 		    <groupId>org.junit.jupiter</groupId>
 		    <artifactId>junit-jupiter-api</artifactId>
-		    <version>5.13.4</version>
+		    <version>6.1.0</version>
 		    <scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.13.4</version>
+			<version>6.1.0</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
         	<groupId>org.junit.jupiter</groupId>
         	<artifactId>junit-jupiter-params</artifactId>
-        	<version>5.13.4</version>
+        	<version>6.1.0</version>
         	<scope>test</scope>
     	</dependency>
 		<dependency>
@@ -219,7 +219,7 @@
 		<dependency>
 	   		<groupId>com.ibm.icu</groupId>
 	   		<artifactId>icu4j</artifactId><!-- used for charset decoding -->
-	   		<version>77.1</version>
+	   		<version>78.3</version>
 	 	</dependency>
 		<!-- https://mvnrepository.com/artifact/org.jetbrains/annotations -->
 		<!--
@@ -234,7 +234,7 @@
 		<dependency>
 			<groupId>org.jetbrains</groupId>
 			<artifactId>annotations</artifactId>
-			<version>26.0.2</version>
+			<version>26.1.0</version>
 		</dependency>
 	</dependencies>
 </project>
