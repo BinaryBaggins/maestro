@@ -82,4 +82,15 @@ public final class NoteEditorGeometry {
         return beat / NoteEditorLayout.BEATS_PER_MEASURE + 1;
     }
 
+    /**
+     * Snaps the given beat to the nearest snap point.
+     * 
+     * @param beat the beat number
+     * @return the snapped beat number
+     */
+    public static double snapBeat(double beat) {
+        return Math.round(beat / NoteEditorLayout.SNAP_BEATS)
+                * NoteEditorLayout.SNAP_BEATS;
+    }
+
 }

@@ -16,6 +16,10 @@ public final class NoteEditorLayout {
 
     public static final int BEATS_PER_MEASURE = 4;
 
+    public static final double SNAP_BEATS = 0.25;
+
+    public static final int NOTE_RESIZE_HANDLE_WIDTH = 5;
+
     public static final Color BLACK_NOTE_ROW_COLOR = new Color(235, 235, 235);
 
     public static final Color PITCH_LINE_COLOR = new Color(210, 210, 210);

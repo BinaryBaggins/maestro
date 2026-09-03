@@ -15,11 +15,23 @@ public class EditorNote {
         return midiNote;
     }
 
+    public void setMidiNote(int midiNote) {
+        this.midiNote = midiNote;
+    }
+
     public double getStartBeat() {
         return startBeat;
     }
 
+    public void setStartBeat(double startBeat) {
+        this.startBeat = startBeat;
+    }
+
     public double getDurationBeats() {
         return durationBeats;
+    }
+
+    public void setDurationBeats(double durationBeats) {
+        this.durationBeats = durationBeats;
     }
 }

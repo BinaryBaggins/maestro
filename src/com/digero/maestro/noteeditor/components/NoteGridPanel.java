@@ -7,6 +7,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.List;
 import java.awt.Color;
+import java.awt.Cursor;
 
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
@@ -22,13 +23,35 @@ public class NoteGridPanel extends JPanel {
     private static final long serialVersionUID = 1L;
     private final NoteEditorViewState viewState;
 
+    private double dragOffsetBeats;
+    private int dragStartY;
+    private int dragStartMidiNote;
+
+    private double resizeFixedBeat;
+    private double resizeOffsetBeats;
+
+    private enum DragMode {
+        NONE,
+        MOVE,
+        RESIZE_LEFT,
+        RESIZE_RIGHT
+    }
+
+    private DragMode dragMode = DragMode.NONE;
+
     public NoteGridPanel(NoteEditorViewState viewSettings, List<EditorNote> notes) {
         this.viewState = viewSettings;
         this.notes = notes;
 
         updatePreferredSize();
-        addMouseListener(new NoteGridMouseListener(this));
+
+        NoteGridMouseListener mouseListener = new NoteGridMouseListener(this);
+        addMouseListener(mouseListener);
+        addMouseMotionListener(mouseListener);
+
         NoteEditorKeyBindings.install(this);
+
+        setFocusable(true);
     }
 
     public void updateZoom() {
@@ -141,10 +164,178 @@ public class NoteGridPanel extends JPanel {
         }
     }
 
-    public void selectNoteAt(Point point) {
+    private DragMode getDragMode(EditorNote note, Point point) {
+        Rectangle bounds = getNoteBounds(note);
+
+        int distanceFromLeft = point.x - bounds.x;
+
+        int distanceFromRight = bounds.x + bounds.width - point.x;
+
+        if (distanceFromLeft >= 0
+                && distanceFromLeft <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH
+                && distanceFromLeft <= distanceFromRight) {
+            return DragMode.RESIZE_LEFT;
+        }
+
+        if (distanceFromRight >= 0
+                && distanceFromRight <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH) {
+            return DragMode.RESIZE_RIGHT;
+        }
+
+        return DragMode.MOVE;
+    }
+
+    public void beginNoteDrag(Point point) {
         requestFocusInWindow();
+
         selectedNote = findNoteAt(point);
+
+        if (selectedNote == null) {
+            dragMode = DragMode.NONE;
+            repaint();
+            return;
+        }
+
+        double mouseBeat = NoteEditorGeometry.getBeatForX(
+                point.x,
+                viewState.getPixelsPerBeat());
+
+        dragMode = getDragMode(selectedNote, point);
+
+        switch (dragMode) {
+            case MOVE -> {
+                dragOffsetBeats = mouseBeat - selectedNote.getStartBeat();
+
+                dragStartY = point.y;
+                dragStartMidiNote = selectedNote.getMidiNote();
+            }
+
+            case RESIZE_LEFT -> {
+                // Right edge remains fixed.
+                resizeFixedBeat = selectedNote.getStartBeat()
+                        + selectedNote.getDurationBeats();
+
+                resizeOffsetBeats = mouseBeat - selectedNote.getStartBeat();
+            }
+
+            case RESIZE_RIGHT -> {
+                // Left edge remains fixed.
+                resizeFixedBeat = selectedNote.getStartBeat();
+
+                double endBeat = selectedNote.getStartBeat()
+                        + selectedNote.getDurationBeats();
+
+                resizeOffsetBeats = mouseBeat - endBeat;
+            }
+
+            default -> {
+            }
+        }
+
         repaint();
+    }
+
+    public void dragSelectedNoteTo(Point point) {
+        if (selectedNote == null) {
+            return;
+        }
+
+        switch (dragMode) {
+            case MOVE ->
+                moveSelectedNoteTo(point);
+
+            case RESIZE_LEFT ->
+                resizeSelectedNoteLeft(point);
+
+            case RESIZE_RIGHT ->
+                resizeSelectedNoteRight(point);
+
+            default -> {
+            }
+        }
+    }
+
+    public void moveSelectedNoteTo(Point point) {
+        if (selectedNote == null) {
+            return;
+        }
+
+        double mouseBeat = NoteEditorGeometry.getBeatForX(
+                point.x,
+                viewState.getPixelsPerBeat());
+
+        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragOffsetBeats);
+
+        if (newStartBeat < 0) {
+            newStartBeat = 0;
+        }
+
+        int deltaY = point.y - dragStartY;
+
+        int deltaNotes = Math.round(
+                (float) deltaY / NoteEditorLayout.NOTE_HEIGHT);
+
+        int newMidiNote = dragStartMidiNote - deltaNotes;
+
+        newMidiNote = Math.max(0,
+                Math.min(
+                        newMidiNote,
+                        NoteEditorLayout.MIDI_NOTE_COUNT - 1));
+
+        selectedNote.setStartBeat(newStartBeat);
+        selectedNote.setMidiNote(newMidiNote);
+
+        repaint();
+    }
+
+    private void resizeSelectedNoteRight(Point point) {
+        double mouseBeat = NoteEditorGeometry.getBeatForX(
+                point.x,
+                viewState.getPixelsPerBeat());
+
+        double newEndBeat = NoteEditorGeometry.snapBeat(
+                mouseBeat - resizeOffsetBeats);
+
+        double minimumEndBeat = resizeFixedBeat + NoteEditorLayout.SNAP_BEATS;
+
+        newEndBeat = Math.max(
+                newEndBeat,
+                minimumEndBeat);
+
+        selectedNote.setDurationBeats(
+                newEndBeat - resizeFixedBeat);
+
+        repaint();
+    }
+
+    private void resizeSelectedNoteLeft(Point point) {
+        double mouseBeat = NoteEditorGeometry.getBeatForX(
+                point.x,
+                viewState.getPixelsPerBeat());
+
+        double newStartBeat = NoteEditorGeometry.snapBeat(
+                mouseBeat - resizeOffsetBeats);
+
+        double maximumStartBeat = resizeFixedBeat - NoteEditorLayout.SNAP_BEATS;
+
+        newStartBeat = Math.max(
+                0,
+                newStartBeat);
+
+        newStartBeat = Math.min(
+                newStartBeat,
+                maximumStartBeat);
+
+        selectedNote.setStartBeat(newStartBeat);
+
+        selectedNote.setDurationBeats(
+                resizeFixedBeat - newStartBeat);
+
+        repaint();
+    }
+
+    public void endNoteDrag() {
+        dragMode = DragMode.NONE;
     }
 
     public void deleteSelectedNote() {
@@ -157,31 +348,49 @@ public class NoteGridPanel extends JPanel {
 
     private EditorNote findNoteAt(Point point) {
         for (EditorNote note : notes) {
-            int x = NoteEditorGeometry.getXForBeat(
-                    note.getStartBeat(),
-                    viewState.getPixelsPerBeat());
-
-            int endX = NoteEditorGeometry.getXForBeat(
-                    note.getStartBeat() + note.getDurationBeats(),
-                    viewState.getPixelsPerBeat());
-
-            int rowY = NoteEditorGeometry.getYForMidiNote(
-                    note.getMidiNote());
-
-            int noteHeight = NoteEditorLayout.NOTE_HEIGHT - 1;
-            int noteY = rowY + 1;
-
-            Rectangle bounds = new Rectangle(
-                    x,
-                    noteY,
-                    endX - x,
-                    noteHeight);
-
-            if (bounds.contains(point)) {
+            if (getNoteBounds(note).contains(point)) {
                 return note;
             }
         }
-
         return null;
+    }
+
+    private Rectangle getNoteBounds(EditorNote note) {
+        int x = NoteEditorGeometry.getXForBeat(
+                note.getStartBeat(),
+                viewState.getPixelsPerBeat());
+
+        int endX = NoteEditorGeometry.getXForBeat(
+                note.getStartBeat() + note.getDurationBeats(),
+                viewState.getPixelsPerBeat());
+
+        int rowY = NoteEditorGeometry.getYForMidiNote(
+                note.getMidiNote());
+
+        return new Rectangle(
+                x,
+                rowY + 1,
+                endX - x,
+                NoteEditorLayout.NOTE_HEIGHT - 1);
+    }
+
+    public void updateMouseCursor(Point point) {
+        EditorNote note = findNoteAt(point);
+
+        if (note == null) {
+            setCursor(Cursor.getDefaultCursor());
+            return;
+        }
+
+        switch (getDragMode(note, point)) {
+            case RESIZE_LEFT, RESIZE_RIGHT ->
+                setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
+
+            case MOVE ->
+                setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+
+            default ->
+                setCursor(Cursor.getDefaultCursor());
+        }
     }
 }
