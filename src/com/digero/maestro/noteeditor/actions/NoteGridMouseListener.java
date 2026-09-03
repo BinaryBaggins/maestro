@@ -17,8 +17,7 @@ public class NoteGridMouseListener extends MouseAdapter {
         noteGridPanel.beginNoteDrag(e.getPoint());
     }
 
-
-     @Override
+    @Override
     public void mouseDragged(MouseEvent e) {
         noteGridPanel.dragSelectedNoteTo(e.getPoint());
     }
@@ -26,6 +25,13 @@ public class NoteGridMouseListener extends MouseAdapter {
     @Override
     public void mouseReleased(MouseEvent e) {
         noteGridPanel.endNoteDrag();
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (e.getClickCount() == 2) {
+            noteGridPanel.createNoteAt(e.getPoint());
+        }
     }
 
     @Override
