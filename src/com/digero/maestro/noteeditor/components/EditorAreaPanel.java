@@ -1,6 +1,7 @@
 package com.digero.maestro.noteeditor.components;
 
-import javax.swing.JPanel;
+import com.digero.maestro.noteeditor.model.EditorNote;
+import com.digero.maestro.noteeditor.model.EditorTrack;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import java.awt.Point;
@@ -10,6 +11,7 @@ import com.digero.maestro.noteeditor.NoteEditorViewState;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import javax.swing.JPanel;
 
 public class EditorAreaPanel extends JPanel {
 
@@ -27,9 +29,15 @@ public class EditorAreaPanel extends JPanel {
         private JScrollBar horizontalScrollBar;
 
         public EditorAreaPanel() {
+                EditorTrack track = new EditorTrack("Test Track");
+                track.addNote(new EditorNote(60, 1.0, 2.0));
+                track.addNote(new EditorNote(64, 3.5, 1.0));
+                track.addNote(new EditorNote(67, 5.0, 1.5));
+                track.addNote(new EditorNote(72, 7.25, 0.5));
+
                 viewState = new NoteEditorViewState();
                 pianoPanel = new PianoPanel();
-                noteGridPanel = new NoteGridPanel(viewState);
+                noteGridPanel = new NoteGridPanel(viewState, track.getNotes());
                 timelinePanel = new TimelinePanel(viewState);
                 timelineControlPanel = new TimelineControlPanel();
 
