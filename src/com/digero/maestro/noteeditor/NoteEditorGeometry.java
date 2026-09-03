@@ -42,22 +42,24 @@ public final class NoteEditorGeometry {
     /**
      * Returns the X coordinate for the given beat in the note editor.
      * 
-     * @param beat the beat number
+     * @param beat          the beat number
+     * @param pixelsPerBeat the number of pixels per beat
      * @return the X coordinate for the given beat in the note editor
      */
-    public static int getXForBeat(double beat) {
+    public static int getXForBeat(double beat, int pixelsPerBeat) {
         return (int) Math.round(
-                beat * NoteEditorLayout.PIXELS_PER_BEAT);
+                beat * pixelsPerBeat);
     }
 
     /**
      * Returns the beat number for the given X coordinate in the note editor.
      * 
-     * @param x the X coordinate
+     * @param x             the X coordinate
+     * @param pixelsPerBeat the number of pixels per beat
      * @return the beat number for the given X coordinate in the note editor
      */
-    public static double getBeatForX(int x) {
-        return (double) x / NoteEditorLayout.PIXELS_PER_BEAT;
+    public static double getBeatForX(int x, int pixelsPerBeat) {
+        return (double) x / pixelsPerBeat;
     }
 
     /**

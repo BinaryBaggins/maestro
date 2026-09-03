@@ -6,73 +6,137 @@ import javax.swing.JScrollPane;
 import java.awt.Point;
 
 import com.digero.maestro.noteeditor.NoteEditorLayout;
+import com.digero.maestro.noteeditor.NoteEditorViewState;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 
 public class EditorAreaPanel extends JPanel {
 
-    private static final long serialVersionUID = 1L;
-    private final PianoPanel pianoPanel;
-    private final NoteGridPanel noteGridPanel;
-    private final TimelinePanel timelinePanel;
+        private static final long serialVersionUID = 1L;
 
-    public EditorAreaPanel() {
-        pianoPanel = new PianoPanel();
-        noteGridPanel = new NoteGridPanel();
-        timelinePanel = new TimelinePanel();
+        private static final int[] ZOOM_LEVELS = { 40, 60, 80, 100, 120, 160, 240 };
 
-        JScrollPane mainScrollPane = new JScrollPane(
-                noteGridPanel,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        private final NoteEditorViewState viewState;
 
-        mainScrollPane.setRowHeaderView(pianoPanel);
+        private final PianoPanel pianoPanel;
+        private final NoteGridPanel noteGridPanel;
+        private final TimelinePanel timelinePanel;
+        private final TimelineControlPanel timelineControlPanel;
+        private JScrollPane mainScrollPane;
+        private JScrollBar horizontalScrollBar;
 
-        JPanel blankPanel = new JPanel();
-        blankPanel.setPreferredSize(
-                new Dimension(NoteEditorLayout.PIANO_WIDTH, NoteEditorLayout.TIMELINE_HEIGHT));
+        public EditorAreaPanel() {
+                viewState = new NoteEditorViewState();
+                pianoPanel = new PianoPanel();
+                noteGridPanel = new NoteGridPanel(viewState);
+                timelinePanel = new TimelinePanel(viewState);
+                timelineControlPanel = new TimelineControlPanel();
 
-        JScrollPane timelineScrollPane = new JScrollPane(
-                timelinePanel,
-                JScrollPane.VERTICAL_SCROLLBAR_NEVER,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        timelineScrollPane.setPreferredSize(
-                new Dimension(0, NoteEditorLayout.TIMELINE_HEIGHT));
-        timelineScrollPane.setRowHeaderView(blankPanel);
+                mainScrollPane = new JScrollPane(
+                                noteGridPanel,
+                                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-        JScrollBar horizontalScrollBar = new JScrollBar(JScrollBar.HORIZONTAL);
-        horizontalScrollBar.setModel(mainScrollPane.getHorizontalScrollBar().getModel());
+                mainScrollPane.setRowHeaderView(pianoPanel);
 
-        JPanel scrollBarBlankPanel = new JPanel();
-        scrollBarBlankPanel.setPreferredSize(
-                new Dimension(NoteEditorLayout.PIANO_WIDTH, 0));
+                timelineControlPanel.setPreferredSize(
+                                new Dimension(NoteEditorLayout.PIANO_WIDTH, NoteEditorLayout.TIMELINE_HEIGHT));
 
-        JPanel scrollBarRow = new JPanel(new BorderLayout());
-        scrollBarRow.add(scrollBarBlankPanel, BorderLayout.WEST);
-        scrollBarRow.add(horizontalScrollBar, BorderLayout.CENTER);
+                JScrollPane timelineScrollPane = new JScrollPane(
+                                timelinePanel,
+                                JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+                                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+                timelineScrollPane.setPreferredSize(
+                                new Dimension(0, NoteEditorLayout.TIMELINE_HEIGHT));
+                timelineScrollPane.setRowHeaderView(timelineControlPanel);
+                timelineControlPanel.addZoomInListener(e -> zoomIn());
+                timelineControlPanel.addZoomOutListener(e -> zoomOut());
 
-        JPanel rightSpacer = new JPanel();
-        rightSpacer.setPreferredSize(
-                new Dimension(
-                        mainScrollPane.getVerticalScrollBar().getPreferredSize().width,
-                        0));
+                horizontalScrollBar = new JScrollBar(JScrollBar.HORIZONTAL);
+                horizontalScrollBar.setModel(mainScrollPane.getHorizontalScrollBar().getModel());
 
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.add(timelineScrollPane, BorderLayout.CENTER);
-        bottomPanel.add(scrollBarRow, BorderLayout.SOUTH);
-        bottomPanel.add(rightSpacer, BorderLayout.EAST);
+                JPanel scrollBarBlankPanel = new JPanel();
+                scrollBarBlankPanel.setPreferredSize(
+                                new Dimension(NoteEditorLayout.PIANO_WIDTH, 0));
 
-        setLayout(new BorderLayout());
+                JPanel scrollBarRow = new JPanel(new BorderLayout());
+                scrollBarRow.add(scrollBarBlankPanel, BorderLayout.WEST);
+                scrollBarRow.add(horizontalScrollBar, BorderLayout.CENTER);
 
-        add(mainScrollPane, BorderLayout.CENTER);
-        add(bottomPanel, BorderLayout.SOUTH);
+                JPanel rightSpacer = new JPanel();
+                rightSpacer.setPreferredSize(
+                                new Dimension(
+                                                mainScrollPane.getVerticalScrollBar().getPreferredSize().width,
+                                                0));
 
-        mainScrollPane.getViewport().addChangeListener(e -> {
-            Point gridPosition = mainScrollPane.getViewport().getViewPosition();
+                JPanel bottomPanel = new JPanel(new BorderLayout());
+                bottomPanel.add(timelineScrollPane, BorderLayout.CENTER);
+                bottomPanel.add(scrollBarRow, BorderLayout.SOUTH);
+                bottomPanel.add(rightSpacer, BorderLayout.EAST);
 
-            timelineScrollPane.getViewport().setViewPosition(
-                    new Point(gridPosition.x, 0));
-        });
-    }
+                mainScrollPane.getViewport().addChangeListener(e -> {
+                        Point gridPosition = mainScrollPane.getViewport().getViewPosition();
+
+                        timelineScrollPane.getViewport().setViewPosition(
+                                        new Point(gridPosition.x, 0));
+                });
+
+                mainScrollPane.getVerticalScrollBar().setUnitIncrement(NoteEditorLayout.NOTE_HEIGHT);
+                mainScrollPane.getVerticalScrollBar().setBlockIncrement(NoteEditorLayout.NOTE_HEIGHT * 4);
+
+                updateHorizontalScrollIncrements();
+
+                setLayout(new BorderLayout());
+                add(mainScrollPane, BorderLayout.CENTER);
+                add(bottomPanel, BorderLayout.SOUTH);
+        }
+
+        private void updateHorizontalScrollIncrements() {
+                int pixelsPerBeat = viewState.getPixelsPerBeat();
+
+                mainScrollPane.getHorizontalScrollBar().setUnitIncrement(pixelsPerBeat);
+
+                mainScrollPane.getHorizontalScrollBar().setBlockIncrement(
+                                pixelsPerBeat * NoteEditorLayout.BEATS_PER_MEASURE);
+
+                horizontalScrollBar.setUnitIncrement(pixelsPerBeat);
+
+                horizontalScrollBar.setBlockIncrement(
+                                pixelsPerBeat * NoteEditorLayout.BEATS_PER_MEASURE);
+        }
+
+        private void zoomIn() {
+                int currentZoom = viewState.getPixelsPerBeat();
+
+                for (int zoomLevel : ZOOM_LEVELS) {
+                        if (zoomLevel > currentZoom) {
+                                setZoom(zoomLevel);
+                                return;
+                        }
+                }
+        }
+
+        private void zoomOut() {
+                int currentZoom = viewState.getPixelsPerBeat();
+
+                for (int i = ZOOM_LEVELS.length - 1; i >= 0; i--) {
+                        if (ZOOM_LEVELS[i] < currentZoom) {
+                                setZoom(ZOOM_LEVELS[i]);
+                                return;
+                        }
+                }
+        }
+
+        private void setZoom(int pixelsPerBeat) {
+                viewState.setPixelsPerBeat(pixelsPerBeat);
+
+                noteGridPanel.updateZoom();
+                timelinePanel.updateZoom();
+
+                timelineControlPanel.setZoomLabel(
+                                viewState.getZoomPercentage());
+
+                updateHorizontalScrollIncrements();
+        }
 }

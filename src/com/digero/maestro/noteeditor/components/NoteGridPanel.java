@@ -5,16 +5,30 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Color;
 import com.digero.maestro.noteeditor.NoteEditorLayout;
+import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.NoteEditorGeometry;
 
 public class NoteGridPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
+    private final NoteEditorViewState viewState;
 
-    public NoteGridPanel() {
+    public NoteGridPanel(NoteEditorViewState viewSettings) {
+        this.viewState = viewSettings;
+
+        updatePreferredSize();
+    }
+
+    public void updateZoom() {
+        updatePreferredSize();
+        revalidate();
+        repaint();
+    }
+
+    private void updatePreferredSize() {
         setPreferredSize(
                 new Dimension(
-                        NoteEditorLayout.EDITOR_WIDTH,
+                        viewState.getEditorWidth(),
                         NoteEditorLayout.EDITOR_HEIGHT));
     }
 
@@ -53,8 +67,8 @@ public class NoteGridPanel extends JPanel {
     }
 
     private void paintTimeGrid(Graphics g) {
-        for (int beat = 0; NoteEditorGeometry.getXForBeat(beat) < getWidth(); beat++) {
-            int x = NoteEditorGeometry.getXForBeat(beat);
+        for (int beat = 0; NoteEditorGeometry.getXForBeat(beat, viewState.getPixelsPerBeat()) < getWidth(); beat++) {
+            int x = NoteEditorGeometry.getXForBeat(beat, viewState.getPixelsPerBeat());
 
             if (NoteEditorGeometry.isMeasureStart(beat)) {
                 g.setColor(NoteEditorLayout.MEASURE_LINE_COLOR);

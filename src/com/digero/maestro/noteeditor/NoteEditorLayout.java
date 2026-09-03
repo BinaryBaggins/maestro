@@ -14,7 +14,6 @@ public final class NoteEditorLayout {
 
     public static final int TIMELINE_HEIGHT = 32;
 
-    public static final int PIXELS_PER_BEAT = 80;
     public static final int BEATS_PER_MEASURE = 4;
 
     public static final Color BLACK_NOTE_ROW_COLOR = new Color(235, 235, 235);
