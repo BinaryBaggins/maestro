@@ -123,43 +123,30 @@ public class NoteGridPanel extends JPanel {
     }
 
     private void paintNote(Graphics g, EditorNote note) {
-        int x = NoteEditorGeometry.getXForBeat(
-                note.getStartBeat(),
-                viewState.getPixelsPerBeat());
-
-        int endX = NoteEditorGeometry.getXForBeat(
-                note.getStartBeat() + note.getDurationBeats(),
-                viewState.getPixelsPerBeat());
-
-        int rowY = NoteEditorGeometry.getYForMidiNote(
-                note.getMidiNote());
-
-        int noteHeight = NoteEditorLayout.NOTE_HEIGHT - 1;
-        int noteY = rowY + 1;
+        Rectangle bounds = getNoteBounds(note);
 
         g.setColor(NoteEditorLayout.NOTE_COLOR);
         g.fillRect(
-                x,
-                noteY,
-                endX - x,
-                noteHeight);
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height);
 
         if (note == selectedNote) {
-            int width = endX - x;
-
             g.setColor(NoteEditorLayout.SELECTED_NOTE_BORDER_COLOR);
-            g.drawRect(
-                    x,
-                    noteY,
-                    endX - x - 1,
-                    noteHeight - 1);
 
-            if (width > 3 && noteHeight > 3) {
+            g.drawRect(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width - 1,
+                    bounds.height - 1);
+
+            if (bounds.width > 3 && bounds.height > 3) {
                 g.drawRect(
-                        x + 1,
-                        noteY + 1,
-                        width - 3,
-                        noteHeight - 3);
+                        bounds.x + 1,
+                        bounds.y + 1,
+                        bounds.width - 3,
+                        bounds.height - 3);
             }
         }
     }
@@ -255,7 +242,7 @@ public class NoteGridPanel extends JPanel {
         }
     }
 
-    public void moveSelectedNoteTo(Point point) {
+    private void moveSelectedNoteTo(Point point) {
         if (selectedNote == null) {
             return;
         }
