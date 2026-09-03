@@ -7,8 +7,10 @@ import java.awt.Color;
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.NoteEditorGeometry;
+import com.digero.maestro.noteeditor.model.EditorNote;
 
 public class NoteGridPanel extends JPanel {
+    private EditorNote testNote = new EditorNote(60, 1.0, 2.0);
 
     private static final long serialVersionUID = 1L;
     private final NoteEditorViewState viewState;
@@ -38,6 +40,7 @@ public class NoteGridPanel extends JPanel {
 
         paintPitchRows(g);
         paintTimeGrid(g);
+        paintNote(g, testNote);
     }
 
     private void paintPitchRows(Graphics g) {
@@ -78,5 +81,28 @@ public class NoteGridPanel extends JPanel {
 
             g.drawLine(x, 0, x, getHeight());
         }
+    }
+
+    private void paintNote(Graphics g, EditorNote note) {
+        int x = NoteEditorGeometry.getXForBeat(
+                note.getStartBeat(),
+                viewState.getPixelsPerBeat());
+
+        int endX = NoteEditorGeometry.getXForBeat(
+                note.getStartBeat() + note.getDurationBeats(),
+                viewState.getPixelsPerBeat());
+
+        int rowY = NoteEditorGeometry.getYForMidiNote(
+                note.getMidiNote());
+
+        int noteHeight = NoteEditorLayout.NOTE_HEIGHT - 1;
+        int noteY = rowY + 1;
+
+        g.setColor(NoteEditorLayout.NOTE_COLOR);
+        g.fillRect(
+                x,
+                noteY,
+                endX - x,
+                noteHeight);
     }
 }

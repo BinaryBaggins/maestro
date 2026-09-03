@@ -24,6 +24,8 @@ public final class NoteEditorLayout {
 
     public static final Color BEAT_LINE_COLOR = new Color(215, 215, 215);
 
+    public static final Color NOTE_COLOR = new Color(100, 140, 190);
+
     private NoteEditorLayout() {
         // Prevent instantiation
     }
