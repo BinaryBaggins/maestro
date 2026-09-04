@@ -1,14 +1,13 @@
 package com.digero.maestro.noteeditor.model;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Optional;
-
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.undo.UndoHistory;
 import com.digero.maestro.noteeditor.undo.UndoableAction;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 public final class NoteEditorModel {
 
@@ -32,19 +31,11 @@ public final class NoteEditorModel {
             return Optional.empty();
         }
 
-        if (!canPlaceNote(
-                null,
-                midiNote,
-                startBeat,
-                durationBeats)) {
-
+        if (!canPlaceNote(null, midiNote, startBeat, durationBeats)) {
             return Optional.empty();
         }
 
-        EditorNote note = new EditorNote(
-                midiNote,
-                startBeat,
-                durationBeats);
+        EditorNote note = new EditorNote(midiNote, startBeat, durationBeats);
 
         int insertionIndex = notes.size();
         notes.add(note);
@@ -54,14 +45,20 @@ public final class NoteEditorModel {
     }
 
     public boolean deleteNote(EditorNote note) {
-        return notes.remove(note);
+        int originalIndex = notes.indexOf(note);
+
+        if (originalIndex < 0) {
+            return false;
+        }
+
+        notes.remove(originalIndex);
+
+        undoHistory.record(new DeleteNoteAction(note, originalIndex));
+
+        return true;
     }
 
-    public boolean moveNote(
-            EditorNote note,
-            int midiNote,
-            double startBeat) {
-
+    public boolean moveNote(EditorNote note, int midiNote, double startBeat) {
         if (!notes.contains(note)) {
             return false;
         }
@@ -69,12 +66,7 @@ public final class NoteEditorModel {
         midiNote = clampMidiNote(midiNote);
         startBeat = Math.max(0, startBeat);
 
-        if (!canPlaceNote(
-                note,
-                midiNote,
-                startBeat,
-                note.getDurationBeats())) {
-
+        if (!canPlaceNote(note, midiNote, startBeat, note.getDurationBeats())) {
             return false;
         }
 
@@ -84,33 +76,20 @@ public final class NoteEditorModel {
         return true;
     }
 
-    public boolean resizeNoteLeft(
-            EditorNote note,
-            double newStartBeat) {
-
+    public boolean resizeNoteLeft(EditorNote note, double newStartBeat) {
         if (!notes.contains(note)) {
             return false;
         }
 
-        double fixedEndBeat = note.getStartBeat()
-                + note.getDurationBeats();
+        double fixedEndBeat = note.getStartBeat() + note.getDurationBeats();
 
         double maximumStartBeat = fixedEndBeat - NoteEditorLayout.SNAP_BEATS;
 
-        newStartBeat = Math.max(
-                0,
-                Math.min(
-                        newStartBeat,
-                        maximumStartBeat));
+        newStartBeat = Math.max(0, Math.min(newStartBeat, maximumStartBeat));
 
         double newDuration = fixedEndBeat - newStartBeat;
 
-        if (!canPlaceNote(
-                note,
-                note.getMidiNote(),
-                newStartBeat,
-                newDuration)) {
-
+        if (!canPlaceNote(note, note.getMidiNote(), newStartBeat, newDuration)) {
             return false;
         }
 
@@ -120,10 +99,7 @@ public final class NoteEditorModel {
         return true;
     }
 
-    public boolean resizeNoteRight(
-            EditorNote note,
-            double newEndBeat) {
-
+    public boolean resizeNoteRight(EditorNote note, double newEndBeat) {
         if (!notes.contains(note)) {
             return false;
         }
@@ -132,18 +108,11 @@ public final class NoteEditorModel {
 
         double minimumEndBeat = startBeat + NoteEditorLayout.SNAP_BEATS;
 
-        newEndBeat = Math.max(
-                newEndBeat,
-                minimumEndBeat);
+        newEndBeat = Math.max(newEndBeat, minimumEndBeat);
 
         double newDuration = newEndBeat - startBeat;
 
-        if (!canPlaceNote(
-                note,
-                note.getMidiNote(),
-                startBeat,
-                newDuration)) {
-
+        if (!canPlaceNote(note, note.getMidiNote(), startBeat, newDuration)) {
             return false;
         }
 
@@ -152,12 +121,7 @@ public final class NoteEditorModel {
         return true;
     }
 
-    public boolean canPlaceNote(
-            EditorNote editedNote,
-            int midiNote,
-            double startBeat,
-            double durationBeats) {
-
+    public boolean canPlaceNote(EditorNote editedNote, int midiNote, double startBeat, double durationBeats) {
         double endBeat = startBeat + durationBeats;
 
         for (EditorNote note : notes) {
@@ -171,12 +135,9 @@ public final class NoteEditorModel {
 
             double otherStart = note.getStartBeat();
 
-            double otherEnd = otherStart
-                    + note.getDurationBeats();
+            double otherEnd = otherStart + note.getDurationBeats();
 
-            if (startBeat < otherEnd
-                    && endBeat > otherStart) {
-
+            if (startBeat < otherEnd && endBeat > otherStart) {
                 return false;
             }
         }
@@ -201,11 +162,7 @@ public final class NoteEditorModel {
     }
 
     private int clampMidiNote(int midiNote) {
-        return Math.max(
-                0,
-                Math.min(
-                        midiNote,
-                        NoteEditorLayout.MIDI_NOTE_COUNT - 1));
+        return Math.max(0, Math.min(midiNote, NoteEditorLayout.MIDI_NOTE_COUNT - 1));
     }
 
     private final class CreateNoteAction implements UndoableAction {
@@ -213,10 +170,7 @@ public final class NoteEditorModel {
         private final EditorNote note;
         private final int insertionIndex;
 
-        private CreateNoteAction(
-                EditorNote note,
-                int insertionIndex) {
-
+        private CreateNoteAction(EditorNote note, int insertionIndex) {
             this.note = note;
             this.insertionIndex = insertionIndex;
         }
@@ -232,4 +186,24 @@ public final class NoteEditorModel {
         }
     }
 
+    private final class DeleteNoteAction implements UndoableAction {
+
+        private final EditorNote note;
+        private final int originalIndex;
+
+        private DeleteNoteAction(EditorNote note, int originalIndex) {
+            this.note = note;
+            this.originalIndex = originalIndex;
+        }
+
+        @Override
+        public void undo() {
+            notes.add(originalIndex, note);
+        }
+
+        @Override
+        public void redo() {
+            notes.remove(note);
+        }
+    }
 }
