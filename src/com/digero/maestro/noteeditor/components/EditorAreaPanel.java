@@ -2,6 +2,7 @@ package com.digero.maestro.noteeditor.components;
 
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.EditorTrack;
+import com.digero.maestro.noteeditor.model.NoteEditorModel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import java.awt.Point;
@@ -35,9 +36,11 @@ public class EditorAreaPanel extends JPanel {
                 track.addNote(new EditorNote(67, 5.0, 1.5));
                 track.addNote(new EditorNote(72, 7.25, 0.5));
 
+                NoteEditorModel model = new NoteEditorModel(track.getNotes());
+
                 viewState = new NoteEditorViewState();
                 pianoPanel = new PianoPanel();
-                noteGridPanel = new NoteGridPanel(viewState, track.getNotes());
+                noteGridPanel = new NoteGridPanel(viewState, model);
                 timelinePanel = new TimelinePanel(viewState);
                 timelineControlPanel = new TimelineControlPanel();
 

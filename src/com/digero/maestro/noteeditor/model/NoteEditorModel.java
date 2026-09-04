@@ -1,0 +1,187 @@
+package com.digero.maestro.noteeditor.model;
+
+import java.util.List;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.Optional;
+
+import com.digero.maestro.noteeditor.NoteEditorLayout;
+
+public final class NoteEditorModel {
+    private final List<EditorNote> notes;
+
+    public NoteEditorModel(List<EditorNote> notes) {
+        this.notes = Objects.requireNonNull(notes);
+    }
+
+    public List<EditorNote> getNotes() {
+        return Collections.unmodifiableList(notes);
+    }
+
+    public Optional<EditorNote> createNote(int midiNote, double startBeat, double durationBeats) {
+        midiNote = clampMidiNote(midiNote);
+        startBeat = Math.max(0, startBeat);
+
+        if (durationBeats < NoteEditorLayout.SNAP_BEATS) {
+            return Optional.empty();
+        }
+
+        if (!canPlaceNote(
+                null,
+                midiNote,
+                startBeat,
+                durationBeats)) {
+
+            return Optional.empty();
+        }
+
+        EditorNote note = new EditorNote(
+                midiNote,
+                startBeat,
+                durationBeats);
+
+        notes.add(note);
+
+        return Optional.of(note);
+    }
+
+    public boolean deleteNote(EditorNote note) {
+        return notes.remove(note);
+    }
+
+    public boolean moveNote(
+            EditorNote note,
+            int midiNote,
+            double startBeat) {
+
+        if (!notes.contains(note)) {
+            return false;
+        }
+
+        midiNote = clampMidiNote(midiNote);
+        startBeat = Math.max(0, startBeat);
+
+        if (!canPlaceNote(
+                note,
+                midiNote,
+                startBeat,
+                note.getDurationBeats())) {
+
+            return false;
+        }
+
+        note.setStartBeat(startBeat);
+        note.setMidiNote(midiNote);
+
+        return true;
+    }
+
+    public boolean resizeNoteLeft(
+            EditorNote note,
+            double newStartBeat) {
+
+        if (!notes.contains(note)) {
+            return false;
+        }
+
+        double fixedEndBeat = note.getStartBeat()
+                + note.getDurationBeats();
+
+        double maximumStartBeat = fixedEndBeat - NoteEditorLayout.SNAP_BEATS;
+
+        newStartBeat = Math.max(
+                0,
+                Math.min(
+                        newStartBeat,
+                        maximumStartBeat));
+
+        double newDuration = fixedEndBeat - newStartBeat;
+
+        if (!canPlaceNote(
+                note,
+                note.getMidiNote(),
+                newStartBeat,
+                newDuration)) {
+
+            return false;
+        }
+
+        note.setStartBeat(newStartBeat);
+        note.setDurationBeats(newDuration);
+
+        return true;
+    }
+
+    public boolean resizeNoteRight(
+            EditorNote note,
+            double newEndBeat) {
+
+        if (!notes.contains(note)) {
+            return false;
+        }
+
+        double startBeat = note.getStartBeat();
+
+        double minimumEndBeat = startBeat + NoteEditorLayout.SNAP_BEATS;
+
+        newEndBeat = Math.max(
+                newEndBeat,
+                minimumEndBeat);
+
+        double newDuration = newEndBeat - startBeat;
+
+        if (!canPlaceNote(
+                note,
+                note.getMidiNote(),
+                startBeat,
+                newDuration)) {
+
+            return false;
+        }
+
+        note.setDurationBeats(newDuration);
+
+        return true;
+    }
+
+    public boolean canPlaceNote(
+            EditorNote editedNote,
+            int midiNote,
+            double startBeat,
+            double durationBeats) {
+
+        double endBeat = startBeat + durationBeats;
+
+        for (EditorNote note : notes) {
+            if (note == editedNote) {
+                continue;
+            }
+
+            if (note.getMidiNote() != midiNote) {
+                continue;
+            }
+
+            double otherStart = note.getStartBeat();
+
+            double otherEnd = otherStart
+                    + note.getDurationBeats();
+
+            if (startBeat < otherEnd
+                    && endBeat > otherStart) {
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private int clampMidiNote(int midiNote) {
+        return Math.max(
+                0,
+                Math.min(
+                        midiNote,
+                        NoteEditorLayout.MIDI_NOTE_COUNT - 1));
+    }
+
+}
