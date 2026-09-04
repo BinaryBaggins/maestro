@@ -319,7 +319,7 @@ public class NoteGridPanel extends JPanel {
             boolean movingRight = newStartBeat > dragStartBeat;
             boolean movingLeft = newStartBeat < dragStartBeat;
 
-            EditorNote blockingNote = findCrossedBlockingNote(
+            Double snappedStartBeat = findNearestValidStartBeat(
                     selectedNote,
                     newMidiNote,
                     newStartBeat,
@@ -328,23 +328,11 @@ public class NoteGridPanel extends JPanel {
                     movingRight,
                     movingLeft);
 
-            if (blockingNote == null) {
+            if (snappedStartBeat == null) {
                 return;
             }
 
-            if (movingRight) {
-                // Snap the new start beat to the end of the blocking note to avoid overlap.
-                newStartBeat = blockingNote.getStartBeat()
-                        + blockingNote.getDurationBeats();
-            } else if (movingLeft) {
-                // Snap the new start beat to the start of the blocking note minus the duration
-                // to avoid overlap.
-                newStartBeat = blockingNote.getStartBeat() - duration;
-
-                if (newStartBeat < 0) {
-                    newStartBeat = 0;
-                }
-            }
+            newStartBeat = snappedStartBeat;
 
             // The snapped position itself must still be valid.
             if (!model.canPlaceNote(
@@ -450,7 +438,14 @@ public class NoteGridPanel extends JPanel {
         }
     }
 
-    private EditorNote findCrossedBlockingNote(
+    /**
+     * Resolves the desired (overlapping) start beat to the nearest valid start beat in the
+     * direction of movement. Notes fully crossed by the mouse are skipped over one after another
+     * (so a whole crossed chain can be jumped in one drag step). As soon as a remaining obstacle
+     * hasn't been passed by the mouse yet, no snap happens at all - the note must not jump while
+     * the mouse is still positioned on the blocking note.
+     */
+    private Double findNearestValidStartBeat(
             EditorNote editedNote,
             int midiNote,
             double startBeat,
@@ -459,9 +454,44 @@ public class NoteGridPanel extends JPanel {
             boolean movingRight,
             boolean movingLeft) {
 
-        double endBeat = startBeat + durationBeats;
+        if (!movingRight && !movingLeft) {
+            return null;
+        }
 
-        EditorNote blockingNote = null;
+        double candidateStart = startBeat;
+
+        while (true) {
+            EditorNote blocker = findOverlappingNote(
+                    editedNote,
+                    midiNote,
+                    candidateStart,
+                    durationBeats);
+
+            if (blocker == null) {
+                return Math.max(0, candidateStart);
+            }
+
+            boolean mouseHasCrossed = movingRight
+                    ? mouseBeat >= blocker.getStartBeat() + blocker.getDurationBeats()
+                    : mouseBeat <= blocker.getStartBeat();
+
+            if (!mouseHasCrossed) {
+                return null;
+            }
+
+            candidateStart = movingRight
+                    ? blocker.getStartBeat() + blocker.getDurationBeats()
+                    : blocker.getStartBeat() - durationBeats;
+        }
+    }
+
+    private EditorNote findOverlappingNote(
+            EditorNote editedNote,
+            int midiNote,
+            double startBeat,
+            double durationBeats) {
+
+        double endBeat = startBeat + durationBeats;
 
         for (EditorNote note : model.getNotes()) {
             if (note == editedNote) {
@@ -475,37 +505,11 @@ public class NoteGridPanel extends JPanel {
             double otherStart = note.getStartBeat();
             double otherEnd = otherStart + note.getDurationBeats();
 
-            boolean overlaps = startBeat < otherEnd
-                    && endBeat > otherStart;
-
-            if (!overlaps) {
-                continue;
-            }
-
-            if (movingRight && mouseBeat >= otherEnd) {
-                /*
-                 * If several notes overlap the proposed position,
-                 * use the furthest crossed note on the right.
-                 */
-                if (blockingNote == null
-                        || otherEnd > blockingNote.getStartBeat()
-                                + blockingNote.getDurationBeats()) {
-
-                    blockingNote = note;
-                }
-            } else if (movingLeft && mouseBeat <= otherStart) {
-                /*
-                 * Analogously use the furthest crossed note
-                 * on the left.
-                 */
-                if (blockingNote == null
-                        || otherStart < blockingNote.getStartBeat()) {
-
-                    blockingNote = note;
-                }
+            if (startBeat < otherEnd && endBeat > otherStart) {
+                return note;
             }
         }
 
-        return blockingNote;
+        return null;
     }
 }
