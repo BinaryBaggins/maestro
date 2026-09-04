@@ -1,6 +1,7 @@
 package com.digero.maestro.noteeditor.model;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,7 +12,7 @@ public final class NoteEditorModel {
     private final List<EditorNote> notes;
 
     public NoteEditorModel(List<EditorNote> notes) {
-        this.notes = Objects.requireNonNull(notes);
+        this.notes = new ArrayList<>(Objects.requireNonNull(notes));
     }
 
     public List<EditorNote> getNotes() {
