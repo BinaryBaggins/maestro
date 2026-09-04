@@ -1,4 +1,4 @@
-package com.digero.maestro.noteeditor;
+package com.digero.maestro.noteeditor.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,8 +10,7 @@ import java.util.ArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.digero.maestro.noteeditor.model.EditorNote;
-import com.digero.maestro.noteeditor.model.NoteEditorModel;
+import com.digero.maestro.noteeditor.NoteEditorLayout;
 
 public class NoteEditorModelTest {
 
