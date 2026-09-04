@@ -7,12 +7,17 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.digero.maestro.noteeditor.NoteEditorLayout;
+import com.digero.maestro.noteeditor.undo.UndoHistory;
+import com.digero.maestro.noteeditor.undo.UndoableAction;
 
 public final class NoteEditorModel {
+
+    private final UndoHistory undoHistory;
     private final List<EditorNote> notes;
 
     public NoteEditorModel(List<EditorNote> notes) {
         this.notes = new ArrayList<>(Objects.requireNonNull(notes));
+        this.undoHistory = new UndoHistory();
     }
 
     public List<EditorNote> getNotes() {
@@ -41,7 +46,9 @@ public final class NoteEditorModel {
                 startBeat,
                 durationBeats);
 
+        int insertionIndex = notes.size();
         notes.add(note);
+        undoHistory.record(new CreateNoteAction(note, insertionIndex));
 
         return Optional.of(note);
     }
@@ -177,12 +184,52 @@ public final class NoteEditorModel {
         return true;
     }
 
+    public boolean canUndo() {
+        return undoHistory.canUndo();
+    }
+
+    public boolean canRedo() {
+        return undoHistory.canRedo();
+    }
+
+    public boolean undo() {
+        return undoHistory.undo();
+    }
+
+    public boolean redo() {
+        return undoHistory.redo();
+    }
+
     private int clampMidiNote(int midiNote) {
         return Math.max(
                 0,
                 Math.min(
                         midiNote,
                         NoteEditorLayout.MIDI_NOTE_COUNT - 1));
+    }
+
+    private final class CreateNoteAction implements UndoableAction {
+
+        private final EditorNote note;
+        private final int insertionIndex;
+
+        private CreateNoteAction(
+                EditorNote note,
+                int insertionIndex) {
+
+            this.note = note;
+            this.insertionIndex = insertionIndex;
+        }
+
+        @Override
+        public void undo() {
+            notes.remove(note);
+        }
+
+        @Override
+        public void redo() {
+            notes.add(insertionIndex, note);
+        }
     }
 
 }

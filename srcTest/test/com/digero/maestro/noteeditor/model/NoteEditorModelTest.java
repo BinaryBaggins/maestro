@@ -254,9 +254,9 @@ public class NoteEditorModelTest {
                 .orElseThrow();
 
         assertTrue(
-                model.resizeNoteLeft(
-                        note,
-                        5.0));
+            model.resizeNoteLeft(
+                note,
+                5.0));
 
         assertEquals(
                 3.0 - NoteEditorLayout.SNAP_BEATS,
@@ -284,9 +284,9 @@ public class NoteEditorModelTest {
                 .orElseThrow();
 
         assertFalse(
-                model.resizeNoteLeft(
-                        note,
-                        0.5));
+            model.resizeNoteLeft(
+                note,
+                0.5));
 
         assertEquals(
                 2.0,
@@ -382,5 +382,65 @@ public class NoteEditorModelTest {
                 1.0);
 
         assertFalse(model.deleteNote(note));
+    }
+
+    @Test
+    public void undoCreateRemovesNote() {
+        EditorNote note = model.createNote(
+                60,
+                0.0,
+                1.0)
+                .orElseThrow();
+
+        assertTrue(model.canUndo());
+
+        assertTrue(model.undo());
+
+        assertTrue(model.getNotes().isEmpty());
+        assertFalse(model.canUndo());
+        assertTrue(model.canRedo());
+    }
+
+    @Test
+    public void redoCreateRestoresSameNoteInstance() {
+        EditorNote note = model.createNote(
+                60,
+                0.0,
+                1.0)
+                .orElseThrow();
+
+        assertTrue(model.undo());
+
+        assertTrue(model.canRedo());
+        assertTrue(model.redo());
+
+        assertEquals(1, model.getNotes().size());
+        assertSame(note, model.getNotes().get(0));
+
+        assertTrue(model.canUndo());
+        assertFalse(model.canRedo());
+    }
+
+    @Test
+    public void failedCreateDoesNotAffectUndoHistory() {
+        EditorNote note = model.createNote(
+                60,
+                0.0,
+                1.0).orElseThrow();
+
+        assertTrue(model.undo());
+        assertTrue(model.canRedo());
+
+        assertTrue(
+            model.createNote(
+                60,
+                0.0,
+                0.0)
+                .isEmpty());
+
+        assertTrue(model.canRedo());
+        assertTrue(model.redo());
+
+        assertSame(note, model.getNotes().get(0));
     }
 }
