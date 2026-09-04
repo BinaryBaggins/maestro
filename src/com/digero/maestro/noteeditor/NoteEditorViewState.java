@@ -22,9 +22,6 @@ public class NoteEditorViewState {
     }
 
     public int getEditorWidth() {
-        return NoteEditorLayout.EDITOR_WIDTH
-                * pixelsPerBeat
-                / DEFAULT_PIXELS_PER_BEAT;
+        return (NoteEditorLayout.EDITOR_WIDTH * pixelsPerBeat) / DEFAULT_PIXELS_PER_BEAT;
     }
-
 }

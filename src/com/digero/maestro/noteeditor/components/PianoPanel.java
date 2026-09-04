@@ -1,14 +1,14 @@
 package com.digero.maestro.noteeditor.components;
 
-import javax.swing.JPanel;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Color;
-
 import com.digero.maestro.noteeditor.NoteEditorGeometry;
 import com.digero.maestro.noteeditor.NoteEditorLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import javax.swing.JPanel;
 
 public class PianoPanel extends JPanel {
+
     private static final long serialVersionUID = 1L;
 
     private static final Color WHITE_KEY_COLOR = Color.WHITE;
@@ -20,10 +20,7 @@ public class PianoPanel extends JPanel {
     // private static final int MIDI_NOTE_COUNT = 128;
 
     public PianoPanel() {
-        setPreferredSize(
-                new Dimension(
-                        NoteEditorLayout.PIANO_WIDTH,
-                        NoteEditorLayout.EDITOR_HEIGHT));
+        setPreferredSize(new Dimension(NoteEditorLayout.PIANO_WIDTH, NoteEditorLayout.EDITOR_HEIGHT));
     }
 
     @Override
@@ -49,28 +46,19 @@ public class PianoPanel extends JPanel {
                 // passes through the center of the black key row
                 int boundaryY = y + NoteEditorLayout.NOTE_HEIGHT / 2;
                 g.drawLine(blackKeyWidth, boundaryY, getWidth() - 1, boundaryY);
-
-            } else if (midiNote < NoteEditorLayout.MIDI_NOTE_COUNT - 1
-                    && !NoteEditorGeometry.isBlackKey(midiNote + 1)) {
-
+            } else if (
+                midiNote < NoteEditorLayout.MIDI_NOTE_COUNT - 1 && !NoteEditorGeometry.isBlackKey(midiNote + 1)
+            ) {
                 // E-F and B-C white key boundaries have no black key between them
                 g.drawLine(0, y, getWidth() - 1, y);
             }
         }
 
         // Right edge of keyboard
-        g.drawLine(
-                getWidth() - 1,
-                0,
-                getWidth() - 1,
-                getHeight() - 1);
+        g.drawLine(getWidth() - 1, 0, getWidth() - 1, getHeight() - 1);
 
         // Bottom edge
-        g.drawLine(
-                0,
-                getHeight() - 1,
-                getWidth() - 1,
-                getHeight() - 1);
+        g.drawLine(0, getHeight() - 1, getWidth() - 1, getHeight() - 1);
     }
 
     private void paintBlackKeys(Graphics g) {

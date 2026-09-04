@@ -19,10 +19,12 @@ public class NoteEditorFrame extends JFrame {
     }
 
     public static void main(String[] args) {
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new NoteEditorFrame().setVisible(true);
+        javax.swing.SwingUtilities.invokeLater(
+            new Runnable() {
+                public void run() {
+                    new NoteEditorFrame().setVisible(true);
+                }
             }
-        });
+        );
     }
 }

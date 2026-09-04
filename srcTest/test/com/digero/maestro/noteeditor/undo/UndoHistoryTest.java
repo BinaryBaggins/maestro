@@ -31,11 +31,7 @@ public class UndoHistoryTest {
     public void recordedActionCanBeUndone() {
         value.value = 10;
 
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        10));
+        history.record(new ValueChangeAction(value, 0, 10));
 
         assertTrue(history.canUndo());
 
@@ -50,11 +46,7 @@ public class UndoHistoryTest {
     public void undoneActionCanBeRedone() {
         value.value = 10;
 
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        10));
+        history.record(new ValueChangeAction(value, 0, 10));
 
         history.undo();
 
@@ -68,18 +60,10 @@ public class UndoHistoryTest {
     @Test
     public void actionsAreUndoneInReverseOrder() {
         value.value = 10;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        10));
+        history.record(new ValueChangeAction(value, 0, 10));
 
         value.value = 20;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        10,
-                        20));
+        history.record(new ValueChangeAction(value, 10, 20));
 
         history.undo();
 
@@ -93,18 +77,10 @@ public class UndoHistoryTest {
     @Test
     public void actionsAreRedoneInOriginalOrder() {
         value.value = 10;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        10));
+        history.record(new ValueChangeAction(value, 0, 10));
 
         value.value = 20;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        10,
-                        20));
+        history.record(new ValueChangeAction(value, 10, 20));
 
         history.undo();
         history.undo();
@@ -121,41 +97,31 @@ public class UndoHistoryTest {
     @Test
     public void recordingNewActionClearsRedoHistory() {
         value.value = 10;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        10));
+        history.record(new ValueChangeAction(value, 0, 10));
 
         history.undo();
 
         assertTrue(history.canRedo());
 
         value.value = 20;
-        history.record(
-                new ValueChangeAction(
-                        value,
-                        0,
-                        20));
+        history.record(new ValueChangeAction(value, 0, 20));
 
         assertFalse(history.canRedo());
         assertTrue(history.canUndo());
     }
 
     private static final class ValueHolder {
+
         private int value;
     }
 
     private static final class ValueChangeAction implements UndoableAction {
+
         private final ValueHolder value;
         private final int before;
         private final int after;
 
-        private ValueChangeAction(
-                ValueHolder value,
-                int before,
-                int after) {
-
+        private ValueChangeAction(ValueHolder value, int before, int after) {
             this.value = value;
             this.before = before;
             this.after = after;

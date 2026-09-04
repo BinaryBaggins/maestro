@@ -1,9 +1,9 @@
 package com.digero.maestro.noteeditor;
 
-import java.awt.BorderLayout;
-import javax.swing.JPanel;
 import com.digero.maestro.noteeditor.components.EditorAreaPanel;
 import com.digero.maestro.noteeditor.components.ToolbarPanel;
+import java.awt.BorderLayout;
+import javax.swing.JPanel;
 
 public class NoteEditorPanel extends JPanel {
 
@@ -21,5 +21,4 @@ public class NoteEditorPanel extends JPanel {
         add(toolbarPanel, BorderLayout.NORTH);
         add(editorAreaPanel, BorderLayout.CENTER);
     }
-
 }

@@ -1,11 +1,12 @@
 package com.digero.maestro.noteeditor.actions;
 
+import com.digero.maestro.noteeditor.components.NoteGridPanel;
 import java.awt.Cursor;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import com.digero.maestro.noteeditor.components.NoteGridPanel;
 
 public class NoteGridMouseListener extends MouseAdapter {
+
     private final NoteGridPanel noteGridPanel;
 
     public NoteGridMouseListener(NoteGridPanel noteGridPanel) {
@@ -43,5 +44,4 @@ public class NoteGridMouseListener extends MouseAdapter {
     public void mouseExited(MouseEvent e) {
         noteGridPanel.setCursor(Cursor.getDefaultCursor());
     }
-
 }

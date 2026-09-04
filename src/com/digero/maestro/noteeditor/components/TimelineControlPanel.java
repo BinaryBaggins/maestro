@@ -1,14 +1,14 @@
 package com.digero.maestro.noteeditor.components;
 
-import javax.swing.JPanel;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.SwingConstants;
-import java.awt.event.ActionListener;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.BorderLayout;
+import java.awt.event.ActionListener;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 
 public class TimelineControlPanel extends JPanel {
 
@@ -56,5 +56,4 @@ public class TimelineControlPanel extends JPanel {
     public void setZoomLabel(int zoomPercent) {
         zoomLabel.setText(zoomPercent + "%");
     }
-
 }

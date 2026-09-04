@@ -2,6 +2,7 @@ package com.digero.maestro.noteeditor.model;
 
 import java.util.ArrayList;
 import java.util.List;
+
 public class EditorTrack {
 
     private final String name;
@@ -23,6 +24,4 @@ public class EditorTrack {
     public void addNote(EditorNote note) {
         notes.add(note);
     }
-
-
 }

@@ -1,6 +1,7 @@
 package com.digero.maestro.noteeditor.model;
 
 public class EditorNote {
+
     private int midiNote;
     private double startBeat;
     private double durationBeats;

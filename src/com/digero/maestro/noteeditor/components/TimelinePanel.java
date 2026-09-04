@@ -1,16 +1,16 @@
 package com.digero.maestro.noteeditor.components;
 
-import javax.swing.JPanel;
-import javax.swing.Scrollable;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Rectangle;
-
 import com.digero.maestro.noteeditor.NoteEditorGeometry;
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Rectangle;
+import javax.swing.JPanel;
+import javax.swing.Scrollable;
 
 public class TimelinePanel extends JPanel implements Scrollable {
+
     private static final long serialVersionUID = 1L;
 
     private final NoteEditorViewState viewState;
@@ -27,9 +27,7 @@ public class TimelinePanel extends JPanel implements Scrollable {
     }
 
     private void updatePreferredSize() {
-        setPreferredSize(new Dimension(
-                viewState.getEditorWidth(),
-                NoteEditorLayout.TIMELINE_HEIGHT));
+        setPreferredSize(new Dimension(viewState.getEditorWidth(), NoteEditorLayout.TIMELINE_HEIGHT));
     }
 
     @Override
@@ -38,18 +36,12 @@ public class TimelinePanel extends JPanel implements Scrollable {
     }
 
     @Override
-    public int getScrollableUnitIncrement(
-            Rectangle visibleRect,
-            int orientation,
-            int direction) {
+    public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
         return 1;
     }
 
     @Override
-    public int getScrollableBlockIncrement(
-            Rectangle visibleRect,
-            int orientation,
-            int direction) {
+    public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
         return visibleRect.width;
     }
 
@@ -68,7 +60,6 @@ public class TimelinePanel extends JPanel implements Scrollable {
         super.paintComponent(g);
 
         for (int beat = 0; NoteEditorGeometry.getXForBeat(beat, viewState.getPixelsPerBeat()) < getWidth(); beat++) {
-
             int x = NoteEditorGeometry.getXForBeat(beat, viewState.getPixelsPerBeat());
 
             if (NoteEditorGeometry.isMeasureStart(beat)) {
@@ -76,10 +67,7 @@ public class TimelinePanel extends JPanel implements Scrollable {
 
                 int measureNumber = NoteEditorGeometry.getMeasureForBeat(beat);
 
-                g.drawString(
-                        String.valueOf(measureNumber),
-                        x + 4,
-                        14);
+                g.drawString(String.valueOf(measureNumber), x + 4, 14);
             } else {
                 g.setColor(NoteEditorLayout.BEAT_LINE_COLOR);
             }

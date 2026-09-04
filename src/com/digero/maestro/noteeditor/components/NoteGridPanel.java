@@ -1,22 +1,22 @@
 package com.digero.maestro.noteeditor.components;
 
-import javax.swing.JPanel;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.Color;
-import java.awt.Cursor;
-
+import com.digero.maestro.noteeditor.NoteEditorGeometry;
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.actions.NoteEditorKeyBindings;
 import com.digero.maestro.noteeditor.actions.NoteGridMouseListener;
-import com.digero.maestro.noteeditor.NoteEditorGeometry;
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.NoteEditorModel;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.Rectangle;
+import javax.swing.JPanel;
 
 public class NoteGridPanel extends JPanel {
+
     private static final long serialVersionUID = 1L;
 
     // Model and view state
@@ -38,7 +38,7 @@ public class NoteGridPanel extends JPanel {
         NONE,
         MOVE,
         RESIZE_LEFT,
-        RESIZE_RIGHT
+        RESIZE_RIGHT,
     }
 
     private DragMode dragMode = DragMode.NONE;
@@ -65,10 +65,7 @@ public class NoteGridPanel extends JPanel {
     }
 
     private void updatePreferredSize() {
-        setPreferredSize(
-                new Dimension(
-                        viewState.getEditorWidth(),
-                        NoteEditorLayout.EDITOR_HEIGHT));
+        setPreferredSize(new Dimension(viewState.getEditorWidth(), NoteEditorLayout.EDITOR_HEIGHT));
     }
 
     @Override
@@ -82,7 +79,6 @@ public class NoteGridPanel extends JPanel {
 
     private void paintPitchRows(Graphics g) {
         for (int midiNote = 0; midiNote < NoteEditorLayout.MIDI_NOTE_COUNT; midiNote++) {
-
             int y = NoteEditorGeometry.getYForMidiNote(midiNote);
 
             if (NoteEditorGeometry.isBlackKey(midiNote)) {
@@ -91,18 +87,10 @@ public class NoteGridPanel extends JPanel {
                 g.setColor(Color.WHITE);
             }
 
-            g.fillRect(
-                    0,
-                    y,
-                    getWidth(),
-                    NoteEditorLayout.NOTE_HEIGHT);
+            g.fillRect(0, y, getWidth(), NoteEditorLayout.NOTE_HEIGHT);
 
             g.setColor(NoteEditorLayout.PITCH_LINE_COLOR);
-            g.drawLine(
-                    0,
-                    y,
-                    getWidth(),
-                    y);
+            g.drawLine(0, y, getWidth(), y);
         }
     }
 
@@ -130,27 +118,15 @@ public class NoteGridPanel extends JPanel {
         Rectangle bounds = getNoteBounds(note);
 
         g.setColor(NoteEditorLayout.NOTE_COLOR);
-        g.fillRect(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height);
+        g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
 
         if (note == selectedNote) {
             g.setColor(NoteEditorLayout.SELECTED_NOTE_BORDER_COLOR);
 
-            g.drawRect(
-                    bounds.x,
-                    bounds.y,
-                    bounds.width - 1,
-                    bounds.height - 1);
+            g.drawRect(bounds.x, bounds.y, bounds.width - 1, bounds.height - 1);
 
             if (bounds.width > 3 && bounds.height > 3) {
-                g.drawRect(
-                        bounds.x + 1,
-                        bounds.y + 1,
-                        bounds.width - 3,
-                        bounds.height - 3);
+                g.drawRect(bounds.x + 1, bounds.y + 1, bounds.width - 3, bounds.height - 3);
             }
         }
     }
@@ -160,19 +136,15 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
-        double beat = NoteEditorGeometry.getBeatForX(
-                point.x,
-                viewState.getPixelsPerBeat());
+        double beat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
         double startBeat = NoteEditorGeometry.snapBeat(beat);
 
         int midiNote = NoteEditorGeometry.getMidiNoteForY(point.y);
 
-        EditorNote note = model.createNote(
-                midiNote,
-                startBeat,
-                NoteEditorLayout.DEFAULT_NOTE_DURATION_BEATS)
-                .orElse(null);
+        EditorNote note = model
+            .createNote(midiNote, startBeat, NoteEditorLayout.DEFAULT_NOTE_DURATION_BEATS)
+            .orElse(null);
 
         if (note == null) {
             return;
@@ -201,14 +173,15 @@ public class NoteGridPanel extends JPanel {
 
         int distanceFromRight = bounds.x + bounds.width - point.x;
 
-        if (distanceFromLeft >= 0
-                && distanceFromLeft <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH
-                && distanceFromLeft <= distanceFromRight) {
+        if (
+            distanceFromLeft >= 0 &&
+            distanceFromLeft <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH &&
+            distanceFromLeft <= distanceFromRight
+        ) {
             return DragMode.RESIZE_LEFT;
         }
 
-        if (distanceFromRight >= 0
-                && distanceFromRight <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH) {
+        if (distanceFromRight >= 0 && distanceFromRight <= NoteEditorLayout.NOTE_RESIZE_HANDLE_WIDTH) {
             return DragMode.RESIZE_RIGHT;
         }
 
@@ -226,9 +199,7 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
-        double mouseBeat = NoteEditorGeometry.getBeatForX(
-                point.x,
-                viewState.getPixelsPerBeat());
+        double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
         dragMode = getDragMode(selectedNote, point);
 
@@ -240,18 +211,14 @@ public class NoteGridPanel extends JPanel {
                 dragStartY = point.y;
                 dragStartMidiNote = selectedNote.getMidiNote();
             }
-
             case RESIZE_LEFT -> {
                 resizeOffsetBeats = mouseBeat - selectedNote.getStartBeat();
             }
-
             case RESIZE_RIGHT -> {
-                double endBeat = selectedNote.getStartBeat()
-                        + selectedNote.getDurationBeats();
+                double endBeat = selectedNote.getStartBeat() + selectedNote.getDurationBeats();
 
                 resizeOffsetBeats = mouseBeat - endBeat;
             }
-
             default -> {
             }
         }
@@ -265,15 +232,9 @@ public class NoteGridPanel extends JPanel {
         }
 
         switch (dragMode) {
-            case MOVE ->
-                moveSelectedNoteTo(point);
-
-            case RESIZE_LEFT ->
-                resizeSelectedNoteLeft(point);
-
-            case RESIZE_RIGHT ->
-                resizeSelectedNoteRight(point);
-
+            case MOVE -> moveSelectedNoteTo(point);
+            case RESIZE_LEFT -> resizeSelectedNoteLeft(point);
+            case RESIZE_RIGHT -> resizeSelectedNoteRight(point);
             default -> {
             }
         }
@@ -284,12 +245,9 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
-        double mouseBeat = NoteEditorGeometry.getBeatForX(
-                point.x,
-                viewState.getPixelsPerBeat());
+        double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
-        double newStartBeat = NoteEditorGeometry.snapBeat(
-                mouseBeat - dragOffsetBeats);
+        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragOffsetBeats);
 
         if (newStartBeat < 0) {
             newStartBeat = 0;
@@ -297,36 +255,27 @@ public class NoteGridPanel extends JPanel {
 
         int deltaY = point.y - dragStartY;
 
-        int deltaNotes = Math.round(
-                (float) deltaY / NoteEditorLayout.NOTE_HEIGHT);
+        int deltaNotes = Math.round((float) deltaY / NoteEditorLayout.NOTE_HEIGHT);
 
         int newMidiNote = dragStartMidiNote - deltaNotes;
 
-        newMidiNote = Math.max(
-                0,
-                Math.min(
-                        newMidiNote,
-                        NoteEditorLayout.MIDI_NOTE_COUNT - 1));
+        newMidiNote = Math.max(0, Math.min(newMidiNote, NoteEditorLayout.MIDI_NOTE_COUNT - 1));
 
         double duration = selectedNote.getDurationBeats();
 
-        if (!model.canPlaceNote(
-                selectedNote,
-                newMidiNote,
-                newStartBeat,
-                duration)) {
-
+        if (!model.canPlaceNote(selectedNote, newMidiNote, newStartBeat, duration)) {
             boolean movingRight = newStartBeat > dragStartBeat;
             boolean movingLeft = newStartBeat < dragStartBeat;
 
             Double snappedStartBeat = findNearestValidStartBeat(
-                    selectedNote,
-                    newMidiNote,
-                    newStartBeat,
-                    duration,
-                    mouseBeat,
-                    movingRight,
-                    movingLeft);
+                selectedNote,
+                newMidiNote,
+                newStartBeat,
+                duration,
+                mouseBeat,
+                movingRight,
+                movingLeft
+            );
 
             if (snappedStartBeat == null) {
                 return;
@@ -335,53 +284,32 @@ public class NoteGridPanel extends JPanel {
             newStartBeat = snappedStartBeat;
 
             // The snapped position itself must still be valid.
-            if (!model.canPlaceNote(
-                    selectedNote,
-                    newMidiNote,
-                    newStartBeat,
-                    duration)) {
-
+            if (!model.canPlaceNote(selectedNote, newMidiNote, newStartBeat, duration)) {
                 return;
             }
         }
 
-        if (model.moveNote(
-                selectedNote,
-                newMidiNote,
-                newStartBeat)) {
-
+        if (model.moveNote(selectedNote, newMidiNote, newStartBeat)) {
             repaint();
         }
     }
 
     private void resizeSelectedNoteRight(Point point) {
-        double mouseBeat = NoteEditorGeometry.getBeatForX(
-                point.x,
-                viewState.getPixelsPerBeat());
+        double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
-        double newEndBeat = NoteEditorGeometry.snapBeat(
-                mouseBeat - resizeOffsetBeats);
+        double newEndBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
 
-        if (model.resizeNoteRight(
-                selectedNote,
-                newEndBeat)) {
-
+        if (model.resizeNoteRight(selectedNote, newEndBeat)) {
             repaint();
         }
     }
 
     private void resizeSelectedNoteLeft(Point point) {
-        double mouseBeat = NoteEditorGeometry.getBeatForX(
-                point.x,
-                viewState.getPixelsPerBeat());
+        double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
-        double newStartBeat = NoteEditorGeometry.snapBeat(
-                mouseBeat - resizeOffsetBeats);
+        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
 
-        if (model.resizeNoteLeft(
-                selectedNote,
-                newStartBeat)) {
-
+        if (model.resizeNoteLeft(selectedNote, newStartBeat)) {
             repaint();
         }
     }
@@ -400,22 +328,16 @@ public class NoteGridPanel extends JPanel {
     }
 
     private Rectangle getNoteBounds(EditorNote note) {
-        int x = NoteEditorGeometry.getXForBeat(
-                note.getStartBeat(),
-                viewState.getPixelsPerBeat());
+        int x = NoteEditorGeometry.getXForBeat(note.getStartBeat(), viewState.getPixelsPerBeat());
 
         int endX = NoteEditorGeometry.getXForBeat(
-                note.getStartBeat() + note.getDurationBeats(),
-                viewState.getPixelsPerBeat());
+            note.getStartBeat() + note.getDurationBeats(),
+            viewState.getPixelsPerBeat()
+        );
 
-        int rowY = NoteEditorGeometry.getYForMidiNote(
-                note.getMidiNote());
+        int rowY = NoteEditorGeometry.getYForMidiNote(note.getMidiNote());
 
-        return new Rectangle(
-                x,
-                rowY + 1,
-                endX - x,
-                NoteEditorLayout.NOTE_HEIGHT - 1);
+        return new Rectangle(x, rowY + 1, endX - x, NoteEditorLayout.NOTE_HEIGHT - 1);
     }
 
     public void updateMouseCursor(Point point) {
@@ -427,14 +349,9 @@ public class NoteGridPanel extends JPanel {
         }
 
         switch (getDragMode(note, point)) {
-            case RESIZE_LEFT, RESIZE_RIGHT ->
-                setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
-
-            case MOVE ->
-                setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-
-            default ->
-                setCursor(Cursor.getDefaultCursor());
+            case RESIZE_LEFT, RESIZE_RIGHT -> setCursor(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR));
+            case MOVE -> setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+            default -> setCursor(Cursor.getDefaultCursor());
         }
     }
 
@@ -446,14 +363,14 @@ public class NoteGridPanel extends JPanel {
      * the mouse is still positioned on the blocking note.
      */
     private Double findNearestValidStartBeat(
-            EditorNote editedNote,
-            int midiNote,
-            double startBeat,
-            double durationBeats,
-            double mouseBeat,
-            boolean movingRight,
-            boolean movingLeft) {
-
+        EditorNote editedNote,
+        int midiNote,
+        double startBeat,
+        double durationBeats,
+        double mouseBeat,
+        boolean movingRight,
+        boolean movingLeft
+    ) {
         if (!movingRight && !movingLeft) {
             return null;
         }
@@ -461,36 +378,32 @@ public class NoteGridPanel extends JPanel {
         double candidateStart = startBeat;
 
         while (true) {
-            EditorNote blocker = findOverlappingNote(
-                    editedNote,
-                    midiNote,
-                    candidateStart,
-                    durationBeats);
+            EditorNote blocker = findOverlappingNote(editedNote, midiNote, candidateStart, durationBeats);
 
             if (blocker == null) {
                 return Math.max(0, candidateStart);
             }
 
             boolean mouseHasCrossed = movingRight
-                    ? mouseBeat >= blocker.getStartBeat() + blocker.getDurationBeats()
-                    : mouseBeat <= blocker.getStartBeat();
+                ? mouseBeat >= blocker.getStartBeat() + blocker.getDurationBeats()
+                : mouseBeat <= blocker.getStartBeat();
 
             if (!mouseHasCrossed) {
                 return null;
             }
 
             candidateStart = movingRight
-                    ? blocker.getStartBeat() + blocker.getDurationBeats()
-                    : blocker.getStartBeat() - durationBeats;
+                ? blocker.getStartBeat() + blocker.getDurationBeats()
+                : blocker.getStartBeat() - durationBeats;
         }
     }
 
     private EditorNote findOverlappingNote(
-            EditorNote editedNote,
-            int midiNote,
-            double startBeat,
-            double durationBeats) {
-
+        EditorNote editedNote,
+        int midiNote,
+        double startBeat,
+        double durationBeats
+    ) {
         double endBeat = startBeat + durationBeats;
 
         for (EditorNote note : model.getNotes()) {

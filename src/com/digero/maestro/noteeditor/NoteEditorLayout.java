@@ -32,10 +32,9 @@ public final class NoteEditorLayout {
 
     public static final Color NOTE_COLOR = new Color(100, 140, 190);
 
-    public static final Color SELECTED_NOTE_BORDER_COLOR = new Color(60,90,130);
+    public static final Color SELECTED_NOTE_BORDER_COLOR = new Color(60, 90, 130);
 
     private NoteEditorLayout() {
         // Prevent instantiation
     }
-
 }
