@@ -14,6 +14,15 @@ public final class NoteEditorModel {
     private final UndoHistory undoHistory;
     private final List<EditorNote> notes;
 
+    private record NoteState(int midiNote, double startBeat, double durationBeats) {
+        private NoteState(EditorNote note) {
+            this(note.getMidiNote(), note.getStartBeat(), note.getDurationBeats());
+        }
+    }
+
+    private NoteState startNoteState;
+    private EditorNote activeStateChangeNote;
+
     public NoteEditorModel(List<EditorNote> notes) {
         this.notes = new ArrayList<>(Objects.requireNonNull(notes));
         this.undoHistory = new UndoHistory();
@@ -56,6 +65,34 @@ public final class NoteEditorModel {
         undoHistory.record(new DeleteNoteAction(note, originalIndex));
 
         return true;
+    }
+
+    public void beginNoteStateChange(EditorNote note) {
+        if (!notes.contains(note)) {
+            throw new IllegalArgumentException("Note does not exist in model");
+        }
+
+        if (activeStateChangeNote != null) {
+            throw new IllegalStateException("A note state change is already active");
+        }
+
+        activeStateChangeNote = note;
+        startNoteState = new NoteState(note);
+    }
+
+    public void endNoteStateChange() {
+        if (activeStateChangeNote == null) {
+            throw new IllegalStateException("No note state change is active");
+        }
+
+        NoteState endNoteState = new NoteState(activeStateChangeNote);
+
+        if (!startNoteState.equals(endNoteState)) {
+            undoHistory.record(new NoteStateChangeAction(activeStateChangeNote, startNoteState, endNoteState));
+        }
+
+        activeStateChangeNote = null;
+        startNoteState = null;
     }
 
     public boolean moveNote(EditorNote note, int midiNote, double startBeat) {
@@ -204,6 +241,33 @@ public final class NoteEditorModel {
         @Override
         public void redo() {
             notes.remove(note);
+        }
+    }
+
+    private final class NoteStateChangeAction implements UndoableAction {
+
+        private final EditorNote note;
+        private final NoteState startNoteState;
+        private final NoteState endNoteState;
+
+        private NoteStateChangeAction(EditorNote note, NoteState startNoteState, NoteState endNoteState) {
+            this.note = note;
+            this.startNoteState = startNoteState;
+            this.endNoteState = endNoteState;
+        }
+
+        @Override
+        public void undo() {
+            note.setMidiNote(startNoteState.midiNote());
+            note.setStartBeat(startNoteState.startBeat());
+            note.setDurationBeats(startNoteState.durationBeats());
+        }
+
+        @Override
+        public void redo() {
+            note.setMidiNote(endNoteState.midiNote());
+            note.setStartBeat(endNoteState.startBeat());
+            note.setDurationBeats(endNoteState.durationBeats());
         }
     }
 }

@@ -301,4 +301,80 @@ public class NoteEditorModelTest {
 
         assertSame(note, model.getNotes().get(0));
     }
+
+    @Test
+    public void undoMoveRestoresOriginalNoteState() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.moveNote(note, 64, 3.0));
+
+        model.endNoteStateChange();
+
+        assertEquals(64, note.getMidiNote());
+        assertEquals(3.0, note.getStartBeat(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(60, note.getMidiNote());
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+        assertEquals(1.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void redoMoveRestoresFinalNoteState() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.moveNote(note, 64, 3.0));
+
+        model.endNoteStateChange();
+
+        assertTrue(model.undo());
+        assertTrue(model.redo());
+
+        assertEquals(64, note.getMidiNote());
+        assertEquals(3.0, note.getStartBeat(), 0.000001);
+        assertEquals(1.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void multipleMovesAreRecordedAsSingleAction() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.moveNote(note, 60, 1.25));
+        assertTrue(model.moveNote(note, 61, 1.50));
+        assertTrue(model.moveNote(note, 62, 2.00));
+        assertTrue(model.moveNote(note, 64, 2.50));
+
+        model.endNoteStateChange();
+
+        assertEquals(64, note.getMidiNote());
+        assertEquals(2.50, note.getStartBeat(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(60, note.getMidiNote());
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void unchangedNoteStateDoesNotCreateHistoryEntry() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        // Begin a note state change, but don't actually change the note
+        model.beginNoteStateChange(note);
+        model.endNoteStateChange();
+
+        // Undo should remove the note, since the create action is the only action in the history
+        assertTrue(model.undo());
+
+        // The note should be gone, and there should be no more undo history
+        assertTrue(model.getNotes().isEmpty());
+        assertFalse(model.canUndo());
+    }
 }

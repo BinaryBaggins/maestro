@@ -199,6 +199,8 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
+        model.beginNoteStateChange(selectedNote);
+
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
         dragMode = getDragMode(selectedNote, point);
@@ -224,6 +226,17 @@ public class NoteGridPanel extends JPanel {
         }
 
         repaint();
+    }
+
+    public void endNoteDrag() {
+        /* This guard is necessary because this method is called
+           on mouse release, even if no note was being dragged. */
+        if (dragMode == DragMode.NONE) {
+            return;
+        }
+
+        model.endNoteStateChange();
+        dragMode = DragMode.NONE;
     }
 
     public void dragSelectedNoteTo(Point point) {
@@ -312,10 +325,6 @@ public class NoteGridPanel extends JPanel {
         if (model.resizeNoteLeft(selectedNote, newStartBeat)) {
             repaint();
         }
-    }
-
-    public void endNoteDrag() {
-        dragMode = DragMode.NONE;
     }
 
     private EditorNote findNoteAt(Point point) {
