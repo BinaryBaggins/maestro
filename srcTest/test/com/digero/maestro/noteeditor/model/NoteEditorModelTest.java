@@ -3,6 +3,7 @@ package com.digero.maestro.noteeditor.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.digero.maestro.noteeditor.NoteEditorLayout;
@@ -376,5 +377,12 @@ public class NoteEditorModelTest {
         // The note should be gone, and there should be no more undo history
         assertTrue(model.getNotes().isEmpty());
         assertFalse(model.canUndo());
+    }
+
+    @Test
+    public void beginNoteStateChangeRejectsUnknownNote() {
+        EditorNote note = new EditorNote(60, 0.0, 1.0);
+
+        assertThrows(IllegalArgumentException.class, () -> model.beginNoteStateChange(note));
     }
 }
