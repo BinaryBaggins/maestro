@@ -3,6 +3,7 @@ package com.digero.maestro.noteeditor.model;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class NoteSelectionModel {
@@ -11,15 +12,17 @@ public class NoteSelectionModel {
 
     public void setSelection(EditorNote note) {
         selectedNotes.clear();
-        selectedNotes.add(note);
+        selectedNotes.add(Objects.requireNonNull(note));
     }
 
     public void setSelection(Collection<EditorNote> notes) {
         selectedNotes.clear();
-        selectedNotes.addAll(notes);
+        selectedNotes.addAll(Objects.requireNonNull(notes));
     }
 
     public SelectionState toggle(EditorNote note) {
+        Objects.requireNonNull(note);
+
         if (selectedNotes.remove(note)) {
             return SelectionState.DESELECTED;
         }
@@ -29,7 +32,7 @@ public class NoteSelectionModel {
     }
 
     public void addToSelection(Collection<EditorNote> notes) {
-        selectedNotes.addAll(notes);
+        selectedNotes.addAll(Objects.requireNonNull(notes));
     }
 
     public void clearSelection() {
