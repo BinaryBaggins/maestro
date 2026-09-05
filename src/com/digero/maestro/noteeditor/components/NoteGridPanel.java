@@ -434,4 +434,37 @@ public class NoteGridPanel extends JPanel {
 
         return null;
     }
+
+    public void undo() {
+        if (!model.undo()) {
+            return;
+        }
+
+        clearSelectionIfMissing();
+        repaint();
+    }
+
+    public void redo() {
+        if (!model.redo()) {
+            return;
+        }
+
+        clearSelectionIfMissing();
+        repaint();
+    }
+
+    private void clearSelectionIfMissing() {
+        if (selectedNote == null) {
+            return;
+        }
+
+        boolean selectedNoteExists = model
+            .getNotes()
+            .stream()
+            .anyMatch(note -> note == selectedNote);
+
+        if (!selectedNoteExists) {
+            selectedNote = null;
+        }
+    }
 }

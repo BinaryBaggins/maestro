@@ -1,6 +1,7 @@
 package com.digero.maestro.noteeditor.actions;
 
 import com.digero.maestro.noteeditor.components.NoteGridPanel;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import javax.swing.AbstractAction;
@@ -11,6 +12,8 @@ public final class NoteEditorKeyBindings {
 
     private NoteEditorKeyBindings() {}
 
+    private static final int shortcutMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+
     public static void install(NoteGridPanel noteGridPanel) {
         bind(
             noteGridPanel,
@@ -18,6 +21,18 @@ public final class NoteEditorKeyBindings {
             "deleteSelectedNote",
             noteGridPanel::deleteSelectedNote
         );
+
+        bind(
+            noteGridPanel,
+            KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask), 
+            "undo",
+            noteGridPanel::undo);
+
+        bind(
+            noteGridPanel,
+            KeyStroke.getKeyStroke(KeyEvent.VK_Y, shortcutMask),
+            "redo",
+            noteGridPanel::redo);
     }
 
     private static void bind(JComponent component, KeyStroke keyStroke, String actionName, Runnable action) {
