@@ -5,6 +5,7 @@ import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.actions.NoteEditorKeyBindings;
 import com.digero.maestro.noteeditor.actions.NoteGridMouseListener;
+import com.digero.maestro.noteeditor.model.DragMode;
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.NoteEditorModel;
 import java.awt.Color;
@@ -32,15 +33,6 @@ public class NoteGridPanel extends JPanel {
 
     // Resizing state variables
     private double resizeOffsetBeats;
-
-    // Drag and resize modes
-    private enum DragMode {
-        NONE,
-        MOVE,
-        RESIZE_LEFT,
-        RESIZE_RIGHT,
-    }
-
     private DragMode dragMode = DragMode.NONE;
 
     public NoteGridPanel(NoteEditorViewState viewSettings, NoteEditorModel model) {
