@@ -385,4 +385,94 @@ public class NoteEditorModelTest {
 
         assertThrows(IllegalArgumentException.class, () -> model.beginNoteStateChange(note));
     }
+
+    @Test
+    public void undoResizeLeftRestoresOriginalState() {
+        EditorNote note = model.createNote(60, 2.0, 2.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.resizeNoteLeft(note, 1.0));
+
+        model.endNoteStateChange();
+
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+        assertEquals(3.0, note.getDurationBeats(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(2.0, note.getStartBeat(), 0.000001);
+        assertEquals(2.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void undoResizeRightRestoresOriginalState() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.resizeNoteRight(note, 3.0));
+
+        model.endNoteStateChange();
+
+        assertEquals(2.0, note.getDurationBeats(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(1.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void redoResizeLeftRestoresFinalState() {
+        EditorNote note = model.createNote(60, 2.0, 2.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.resizeNoteLeft(note, 1.0));
+
+        model.endNoteStateChange();
+
+        assertTrue(model.undo());
+        assertTrue(model.redo());
+
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+        assertEquals(3.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void redoResizeRightRestoresFinalState() {
+        EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.resizeNoteRight(note, 3.0));
+
+        model.endNoteStateChange();
+
+        assertTrue(model.undo());
+        assertTrue(model.redo());
+
+        assertEquals(2.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void multipleResizeChangesAreRecordedAsSingleAction() {
+        EditorNote note = model.createNote(60, 2.0, 2.0).orElseThrow();
+
+        model.beginNoteStateChange(note);
+
+        assertTrue(model.resizeNoteLeft(note, 1.75));
+        assertTrue(model.resizeNoteLeft(note, 1.50));
+        assertTrue(model.resizeNoteLeft(note, 1.00));
+
+        model.endNoteStateChange();
+
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+        assertEquals(3.0, note.getDurationBeats(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(2.0, note.getStartBeat(), 0.000001);
+        assertEquals(2.0, note.getDurationBeats(), 0.000001);
+    }
 }
