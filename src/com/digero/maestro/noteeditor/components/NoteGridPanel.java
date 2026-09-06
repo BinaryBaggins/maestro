@@ -546,6 +546,7 @@ public class NoteGridPanel extends JPanel {
         }
 
         selectionBox.update(point);
+        updateSelectionFromBox();
 
         repaint();
     }
@@ -555,6 +556,14 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
+        selectionBox = null;
+        selectionBeforeBox = Set.of();
+        additiveSelectionBox = false;
+
+        repaint();
+    }
+
+    private void updateSelectionFromBox() {
         Rectangle box = selectionBox.getBounds();
 
         Set<EditorNote> notesInBox = model
@@ -572,11 +581,5 @@ public class NoteGridPanel extends JPanel {
         } else {
             selectionModel.setSelection(notesInBox);
         }
-
-        selectionBox = null;
-        selectionBeforeBox = Set.of();
-        additiveSelectionBox = false;
-
-        repaint();
     }
 }
