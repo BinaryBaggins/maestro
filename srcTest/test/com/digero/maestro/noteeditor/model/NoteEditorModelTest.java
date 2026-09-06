@@ -81,22 +81,22 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void moveNoteChangesBeatAndPitch() {
+    public void moveNotesChangesBeatAndPitch() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
-        assertTrue(model.moveNote(note, 64, 2.0));
+        assertTrue(model.moveNotes(List.of(note), 4, 2.0));
 
         assertEquals(64, note.getMidiNote());
         assertEquals(2.0, note.getStartBeat(), 0.000001);
     }
 
     @Test
-    public void moveNoteRejectsOverlapWithoutChangingNote() {
+    public void moveNotesRejectsOverlapWithoutChangingNote() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
         model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertFalse(model.moveNote(note, 60, 1.5));
+        assertFalse(model.moveNotes(List.of(note), 0, 1.5));
 
         assertEquals(0.0, note.getStartBeat(), 0.000001);
 
@@ -104,19 +104,19 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void moveNoteRejectsUnknownNote() {
+    public void moveNotesRejectsUnknownNote() {
         EditorNote note = new EditorNote(60, 0.0, 1.0);
 
-        assertFalse(model.moveNote(note, 60, 2.0));
+        assertThrows(IllegalArgumentException.class, () -> model.moveNotes(List.of(note), 0, 2.0));
 
         assertEquals(0.0, note.getStartBeat(), 0.000001);
     }
 
     @Test
-    public void moveNoteClampsStartBeatToZero() {
+    public void moveNotesClampsStartBeatToZero() {
         EditorNote note = model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertTrue(model.moveNote(note, 60, -5.0));
+        assertTrue(model.moveNotes(List.of(note), 0, -5.0));
 
         assertEquals(0.0, note.getStartBeat(), 0.000001);
     }
@@ -125,7 +125,7 @@ public class NoteEditorModelTest {
     public void resizeLeftChangesStartAndDuration() {
         EditorNote note = model.createNote(60, 2.0, 2.0).orElseThrow();
 
-        assertTrue(model.resizeNoteLeft(note, 1.0));
+        assertTrue(model.resizeNotesLeft(List.of(note), -1.0));
 
         assertEquals(1.0, note.getStartBeat(), 0.000001);
 
@@ -136,7 +136,7 @@ public class NoteEditorModelTest {
     public void resizeLeftEnforcesMinimumDuration() {
         EditorNote note = model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertTrue(model.resizeNoteLeft(note, 5.0));
+        assertTrue(model.resizeNotesLeft(List.of(note), 5.0));
 
         assertEquals(3.0 - NoteEditorLayout.SNAP_BEATS, note.getStartBeat(), 0.000001);
 
@@ -149,7 +149,7 @@ public class NoteEditorModelTest {
 
         EditorNote note = model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertFalse(model.resizeNoteLeft(note, 0.5));
+        assertFalse(model.resizeNotesLeft(List.of(note), -1.5));
 
         assertEquals(2.0, note.getStartBeat(), 0.000001);
 
@@ -160,7 +160,7 @@ public class NoteEditorModelTest {
     public void resizeRightChangesDuration() {
         EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
 
-        assertTrue(model.resizeNoteRight(note, 3.0));
+        assertTrue(model.resizeNotesRight(List.of(note), 1.0));
 
         assertEquals(2.0, note.getDurationBeats(), 0.000001);
     }
@@ -169,7 +169,7 @@ public class NoteEditorModelTest {
     public void resizeRightEnforcesMinimumDuration() {
         EditorNote note = model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertTrue(model.resizeNoteRight(note, 1.0));
+        assertTrue(model.resizeNotesRight(List.of(note), -2.0));
 
         assertEquals(NoteEditorLayout.SNAP_BEATS, note.getDurationBeats(), 0.000001);
     }
@@ -180,24 +180,24 @@ public class NoteEditorModelTest {
 
         model.createNote(60, 2.0, 1.0).orElseThrow();
 
-        assertFalse(model.resizeNoteRight(note, 2.5));
+        assertFalse(model.resizeNotesRight(List.of(note), 1.5));
 
         assertEquals(1.0, note.getDurationBeats(), 0.000001);
     }
 
     @Test
-    public void deleteNoteRemovesExistingNote() {
+    public void deleteNotesRemovesExistingNote() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
-        assertTrue(model.deleteNote(note));
+        assertTrue(model.deleteNotes(List.of(note)));
         assertTrue(model.getNotes().isEmpty());
     }
 
     @Test
-    public void deleteNoteReturnsFalseForUnknownNote() {
+    public void deleteNotesReturnsFalseForUnknownNote() {
         EditorNote note = new EditorNote(60, 0.0, 1.0);
 
-        assertFalse(model.deleteNote(note));
+        assertFalse(model.deleteNotes(List.of(note)));
     }
 
     @Test
@@ -245,10 +245,10 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void undoDeleteRestoresSameNoteInstance() {
+    public void undoDeleteNotesRestoresSameNoteInstance() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
-        assertTrue(model.deleteNote(note));
+        assertTrue(model.deleteNotes(List.of(note)));
         assertTrue(model.getNotes().isEmpty());
 
         assertTrue(model.undo());
@@ -258,14 +258,14 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void undoDeleteRestoresOriginalPosition() {
+    public void undoDeleteNotesRestoresOriginalPosition() {
         EditorNote first = model.createNote(60, 0.0, 1.0).orElseThrow();
 
         EditorNote second = model.createNote(61, 1.0, 1.0).orElseThrow();
 
         EditorNote third = model.createNote(62, 2.0, 1.0).orElseThrow();
 
-        assertTrue(model.deleteNote(second));
+        assertTrue(model.deleteNotes(List.of(second)));
 
         assertTrue(model.undo());
 
@@ -275,10 +275,10 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void redoDeleteRemovesSameNoteAgain() {
+    public void redoDeleteNotesRemovesSameNoteAgain() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
-        assertTrue(model.deleteNote(note));
+        assertTrue(model.deleteNotes(List.of(note)));
 
         assertTrue(model.undo());
         assertTrue(model.redo());
@@ -287,7 +287,7 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void failedDeleteDoesNotAffectUndoHistory() {
+    public void failedDeleteNotesDoesNotAffectUndoHistory() {
         EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
 
         assertTrue(model.undo());
@@ -295,7 +295,7 @@ public class NoteEditorModelTest {
 
         EditorNote unknownNote = new EditorNote(61, 0.0, 1.0);
 
-        assertFalse(model.deleteNote(unknownNote));
+        assertFalse(model.deleteNotes(List.of(unknownNote)));
 
         assertTrue(model.canRedo());
 
@@ -310,7 +310,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.moveNote(note, 64, 3.0));
+        assertTrue(model.moveNotes(List.of(note), 4, 2.0));
 
         model.endNoteStateChange();
 
@@ -330,7 +330,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.moveNote(note, 64, 3.0));
+        assertTrue(model.moveNotes(List.of(note), 4, 2.0));
 
         model.endNoteStateChange();
 
@@ -343,15 +343,15 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void multipleMovesAreRecordedAsSingleAction() {
+    public void multipleMoveDeltasAreRecordedAsSingleAction() {
         EditorNote note = model.createNote(60, 1.0, 1.0).orElseThrow();
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.moveNote(note, 60, 1.25));
-        assertTrue(model.moveNote(note, 61, 1.50));
-        assertTrue(model.moveNote(note, 62, 2.00));
-        assertTrue(model.moveNote(note, 64, 2.50));
+        assertTrue(model.moveNotes(List.of(note), 0, 0.25));
+        assertTrue(model.moveNotes(List.of(note), 1, 0.50));
+        assertTrue(model.moveNotes(List.of(note), 2, 1.00));
+        assertTrue(model.moveNotes(List.of(note), 4, 1.50));
 
         model.endNoteStateChange();
 
@@ -393,7 +393,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.resizeNoteLeft(note, 1.0));
+        assertTrue(model.resizeNotesLeft(List.of(note), -1.0));
 
         model.endNoteStateChange();
 
@@ -412,7 +412,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.resizeNoteRight(note, 3.0));
+        assertTrue(model.resizeNotesRight(List.of(note), 1.0));
 
         model.endNoteStateChange();
 
@@ -429,7 +429,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.resizeNoteLeft(note, 1.0));
+        assertTrue(model.resizeNotesLeft(List.of(note), -1.0));
 
         model.endNoteStateChange();
 
@@ -446,7 +446,7 @@ public class NoteEditorModelTest {
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.resizeNoteRight(note, 3.0));
+        assertTrue(model.resizeNotesRight(List.of(note), 1.0));
 
         model.endNoteStateChange();
 
@@ -457,14 +457,14 @@ public class NoteEditorModelTest {
     }
 
     @Test
-    public void multipleResizeChangesAreRecordedAsSingleAction() {
+    public void multipleResizeDeltasAreRecordedAsSingleAction() {
         EditorNote note = model.createNote(60, 2.0, 2.0).orElseThrow();
 
         model.beginNoteStateChange(note);
 
-        assertTrue(model.resizeNoteLeft(note, 1.75));
-        assertTrue(model.resizeNoteLeft(note, 1.50));
-        assertTrue(model.resizeNoteLeft(note, 1.00));
+        assertTrue(model.resizeNotesLeft(List.of(note), -0.25));
+        assertTrue(model.resizeNotesLeft(List.of(note), -0.50));
+        assertTrue(model.resizeNotesLeft(List.of(note), -1.00));
 
         model.endNoteStateChange();
 

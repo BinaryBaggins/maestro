@@ -51,14 +51,6 @@ public final class NoteEditorModel {
         return Optional.of(note);
     }
 
-    public boolean deleteNote(EditorNote note) {
-        if (!notes.contains(note)) {
-            return false;
-        }
-
-        return deleteNotes(List.of(note));
-    }
-
     public boolean deleteNotes(Collection<EditorNote> notesToDelete) {
         Objects.requireNonNull(notesToDelete);
 
@@ -136,24 +128,6 @@ public final class NoteEditorModel {
         }
 
         activeStartStates = null;
-    }
-
-    public boolean moveNote(EditorNote note, int midiNote, double startBeat) {
-        if (!notes.contains(note)) {
-            return false;
-        }
-
-        midiNote = clampMidiNote(midiNote);
-        startBeat = Math.max(0, startBeat);
-
-        if (!canPlaceNote(note, midiNote, startBeat, note.getDurationBeats())) {
-            return false;
-        }
-
-        note.setStartBeat(startBeat);
-        note.setMidiNote(midiNote);
-
-        return true;
     }
 
     public boolean moveNotes(Collection<EditorNote> notesToMove, int deltaMidiNotes, double deltaBeats) {
@@ -236,29 +210,6 @@ public final class NoteEditorModel {
         return changed;
     }
 
-    public boolean resizeNoteLeft(EditorNote note, double newStartBeat) {
-        if (!notes.contains(note)) {
-            return false;
-        }
-
-        double fixedEndBeat = note.getStartBeat() + note.getDurationBeats();
-
-        double maximumStartBeat = fixedEndBeat - NoteEditorLayout.SNAP_BEATS;
-
-        newStartBeat = Math.max(0, Math.min(newStartBeat, maximumStartBeat));
-
-        double newDuration = fixedEndBeat - newStartBeat;
-
-        if (!canPlaceNote(note, note.getMidiNote(), newStartBeat, newDuration)) {
-            return false;
-        }
-
-        note.setStartBeat(newStartBeat);
-        note.setDurationBeats(newDuration);
-
-        return true;
-    }
-
     public boolean resizeNotesLeft(Collection<EditorNote> notesToResize, double deltaStartBeat) {
         Set<EditorNote> resizedNotes = validateNoteGroup(notesToResize);
 
@@ -299,28 +250,6 @@ public final class NoteEditorModel {
         return applyTargetStates(targetStates);
     }
 
-    public boolean resizeNoteRight(EditorNote note, double newEndBeat) {
-        if (!notes.contains(note)) {
-            return false;
-        }
-
-        double startBeat = note.getStartBeat();
-
-        double minimumEndBeat = startBeat + NoteEditorLayout.SNAP_BEATS;
-
-        newEndBeat = Math.max(newEndBeat, minimumEndBeat);
-
-        double newDuration = newEndBeat - startBeat;
-
-        if (!canPlaceNote(note, note.getMidiNote(), startBeat, newDuration)) {
-            return false;
-        }
-
-        note.setDurationBeats(newDuration);
-
-        return true;
-    }
-
     public boolean resizeNotesRight(Collection<EditorNote> notesToResize, double deltaEndBeat) {
         Set<EditorNote> resizedNotes = validateNoteGroup(notesToResize);
 
@@ -356,7 +285,7 @@ public final class NoteEditorModel {
         return applyTargetStates(targetStates);
     }
 
-    public boolean canPlaceNote(EditorNote editedNote, int midiNote, double startBeat, double durationBeats) {
+    private boolean canPlaceNote(EditorNote editedNote, int midiNote, double startBeat, double durationBeats) {
         double endBeat = startBeat + durationBeats;
 
         for (EditorNote note : notes) {

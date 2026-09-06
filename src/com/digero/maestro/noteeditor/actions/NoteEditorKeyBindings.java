@@ -14,7 +14,7 @@ public final class NoteEditorKeyBindings {
 
     private NoteEditorKeyBindings() {}
 
-    private static final int shortcutMask = getShortcutMask();
+    private static final int SHORTCUT_MASK = getShortcutMask();
 
     private static int getShortcutMask() {
         if (GraphicsEnvironment.isHeadless()) {
@@ -32,9 +32,9 @@ public final class NoteEditorKeyBindings {
             noteGridPanel::deleteSelectedNotes
         );
 
-        bind(noteGridPanel, KeyStroke.getKeyStroke(KeyEvent.VK_Z, shortcutMask), "undo", noteGridPanel::undo);
+        bind(noteGridPanel, KeyStroke.getKeyStroke(KeyEvent.VK_Z, SHORTCUT_MASK), "undo", noteGridPanel::undo);
 
-        bind(noteGridPanel, KeyStroke.getKeyStroke(KeyEvent.VK_Y, shortcutMask), "redo", noteGridPanel::redo);
+        bind(noteGridPanel, KeyStroke.getKeyStroke(KeyEvent.VK_Y, SHORTCUT_MASK), "redo", noteGridPanel::redo);
     }
 
     private static void bind(JComponent component, KeyStroke keyStroke, String actionName, Runnable action) {
