@@ -6,6 +6,7 @@ import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.actions.NoteEditorKeyBindings;
 import com.digero.maestro.noteeditor.actions.NoteGridMouseListener;
 import com.digero.maestro.noteeditor.interaction.GroupMoveResolver;
+import com.digero.maestro.noteeditor.interaction.NoteDragState;
 import com.digero.maestro.noteeditor.interaction.ResolvedGroupMove;
 import com.digero.maestro.noteeditor.model.DragMode;
 import com.digero.maestro.noteeditor.model.EditorNote;
@@ -18,10 +19,8 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -41,20 +40,7 @@ public class NoteGridPanel extends JPanel {
     private boolean additiveSelectionBox;
     private Set<EditorNote> selectionBeforeBox = Set.of();
 
-    private EditorNote dragNote;
-    private Set<EditorNote> dragNotes = Set.of();
-    private double dragStartEndBeat;
-
-    // Dragging state variables
-    private double dragOffsetBeats;
-    private int dragStartY;
-    private double dragStartBeat;
-
-    private Map<EditorNote, NoteSnapshot> dragStartStates = Map.of();
-
-    // Resizing state variables
-    private double resizeOffsetBeats;
-    private DragMode dragMode = DragMode.NONE;
+    private NoteDragState dragState;
 
     public NoteGridPanel(NoteEditorViewState viewSettings, NoteEditorModel model) {
         this.viewState = viewSettings;
@@ -225,74 +211,48 @@ public class NoteGridPanel extends JPanel {
     public void beginNoteDrag(Point point) {
         requestFocusInWindow();
 
-        dragNote = findNoteAt(point);
+        EditorNote grabbedNote = findNoteAt(point);
 
-        if (dragNote == null) {
-            dragMode = DragMode.NONE;
+        if (grabbedNote == null) {
+            dragState = null;
             repaint();
             return;
         }
 
-        if (!selectionModel.isSelected(dragNote)) {
-            selectionModel.setSelection(dragNote);
+        if (!selectionModel.isSelected(grabbedNote)) {
+            selectionModel.setSelection(grabbedNote);
         }
 
-        dragNotes = new LinkedHashSet<>(selectionModel.getSelectedNotes());
-
-        Map<EditorNote, NoteSnapshot> startStates = new LinkedHashMap<>();
-
-        for (EditorNote note : dragNotes) {
-            startStates.put(note, new NoteSnapshot(note));
-        }
-
-        dragStartStates = startStates;
-
-        model.beginNoteStateChange(dragNotes);
+        Set<EditorNote> selectedNotes = new LinkedHashSet<>(selectionModel.getSelectedNotes());
 
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
+        DragMode mode = getDragMode(grabbedNote, point);
 
-        dragMode = getDragMode(dragNote, point);
+        NoteDragState newDragState = NoteDragState.capture(grabbedNote, selectedNotes, mode, mouseBeat, point.y);
 
-        dragStartBeat = dragNote.getStartBeat();
-        dragStartEndBeat = dragNote.getStartBeat() + dragNote.getDurationBeats();
-        dragStartY = point.y;
+        model.beginNoteStateChange(newDragState.notes());
 
-        switch (dragMode) {
-            case MOVE -> {
-                dragOffsetBeats = mouseBeat - dragStartBeat;
-            }
-            case RESIZE_LEFT -> {
-                resizeOffsetBeats = mouseBeat - dragStartBeat;
-            }
-            case RESIZE_RIGHT -> {
-                resizeOffsetBeats = mouseBeat - dragStartEndBeat;
-            }
-            default -> {
-            }
-        }
+        dragState = newDragState;
 
         repaint();
     }
 
     public void endNoteDrag() {
-        if (dragMode == DragMode.NONE) {
+        if (dragState == null) {
             return;
         }
 
         model.endNoteStateChange();
 
-        dragMode = DragMode.NONE;
-        dragNote = null;
-        dragNotes = Set.of();
-        dragStartStates = Map.of();
+        dragState = null;
     }
 
     public void dragSelectedNoteTo(Point point) {
-        if (dragNote == null) {
+        if (dragState == null) {
             return;
         }
 
-        switch (dragMode) {
+        switch (dragState.mode()) {
             case MOVE -> moveSelectedNotesTo(point);
             case RESIZE_LEFT -> resizeSelectedNotesLeft(point);
             case RESIZE_RIGHT -> resizeSelectedNotesRight(point);
@@ -302,27 +262,23 @@ public class NoteGridPanel extends JPanel {
     }
 
     private void moveSelectedNotesTo(Point point) {
-        if (dragNote == null) {
-            return;
-        }
-
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragOffsetBeats);
-        double deltaBeat = newStartBeat - dragStartBeat;
-        int deltaY = point.y - dragStartY;
+        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragState.pointerOffsetBeats());
+        double deltaBeat = newStartBeat - dragState.grabbedStartBeat();
+        int deltaY = point.y - dragState.startY();
         int deltaNotes = Math.round((float) deltaY / NoteEditorLayout.NOTE_HEIGHT);
         int deltaMidiNotes = -deltaNotes;
 
-        if (model.moveNotes(dragNotes, deltaMidiNotes, deltaBeat)) {
+        if (model.moveNotes(dragState.notes(), deltaMidiNotes, deltaBeat)) {
             repaint();
             return;
         }
 
-        List<NoteSnapshot> movingSnapshots = List.copyOf(dragStartStates.values());
+        List<NoteSnapshot> movingSnapshots = List.copyOf(dragState.snapshots());
         List<NoteSnapshot> blockingSnapshots = model
             .getNotes()
             .stream()
-            .filter(note -> !dragNotes.contains(note))
+            .filter(note -> !dragState.notes().contains(note))
             .map(NoteSnapshot::new)
             .toList();
 
@@ -337,27 +293,27 @@ public class NoteGridPanel extends JPanel {
             return;
         }
         ResolvedGroupMove resolved = resolvedMove.orElseThrow();
-        if (model.moveNotes(dragNotes, resolved.midiDelta(), resolved.beatDelta())) {
+        if (model.moveNotes(dragState.notes(), resolved.midiDelta(), resolved.beatDelta())) {
             repaint();
         }
     }
 
     private void resizeSelectedNotesRight(Point point) {
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-        double newEndBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
-        double deltaEndBeat = newEndBeat - dragStartEndBeat;
+        double newEndBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragState.pointerOffsetBeats());
+        double deltaEndBeat = newEndBeat - dragState.grabbedStartEndBeat();
 
-        if (model.resizeNotesRight(dragNotes, deltaEndBeat)) {
+        if (model.resizeNotesRight(dragState.notes(), deltaEndBeat)) {
             repaint();
         }
     }
 
     private void resizeSelectedNotesLeft(Point point) {
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
-        double deltaStartBeat = newStartBeat - dragStartBeat;
+        double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragState.pointerOffsetBeats());
+        double deltaStartBeat = newStartBeat - dragState.grabbedStartBeat();
 
-        if (model.resizeNotesLeft(dragNotes, deltaStartBeat)) {
+        if (model.resizeNotesLeft(dragState.notes(), deltaStartBeat)) {
             repaint();
         }
     }
