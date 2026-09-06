@@ -183,15 +183,14 @@ public class NoteGridPanel extends JPanel {
         repaint();
     }
 
-    public void deleteSelectedNote() {
-        // for now we only support deleting a single selected note at a time
-        if (selectionModel.getSelectedNotes().size() != 1) {
+    public void deleteSelectedNotes() {
+        Set<EditorNote> selectedNotes = new LinkedHashSet<>(selectionModel.getSelectedNotes());
+
+        if (selectedNotes.isEmpty()) {
             return;
         }
 
-        EditorNote note = selectionModel.getSelectedNotes().iterator().next();
-
-        if (model.deleteNote(note)) {
+        if (model.deleteNotes(selectedNotes)) {
             selectionModel.clearSelection();
             repaint();
         }

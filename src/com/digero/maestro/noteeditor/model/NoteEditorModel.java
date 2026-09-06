@@ -6,6 +6,7 @@ import com.digero.maestro.noteeditor.undo.UndoableAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,15 +52,41 @@ public final class NoteEditorModel {
     }
 
     public boolean deleteNote(EditorNote note) {
-        int originalIndex = notes.indexOf(note);
-
-        if (originalIndex < 0) {
+        if (!notes.contains(note)) {
             return false;
         }
 
-        notes.remove(originalIndex);
+        return deleteNotes(List.of(note));
+    }
 
-        undoHistory.record(new DeleteNoteAction(note, originalIndex));
+    public boolean deleteNotes(Collection<EditorNote> notesToDelete) {
+        Objects.requireNonNull(notesToDelete);
+
+        Set<EditorNote> uniqueNotes = new LinkedHashSet<>(notesToDelete);
+
+        if (uniqueNotes.isEmpty()) {
+            return false;
+        }
+
+        List<DeletedNote> deletedNotes = new ArrayList<>();
+
+        for (EditorNote note : uniqueNotes) {
+            int index = notes.indexOf(note);
+
+            if (index < 0) {
+                return false;
+            }
+
+            deletedNotes.add(new DeletedNote(note, index));
+        }
+
+        deletedNotes.sort(Comparator.comparingInt(DeletedNote::originalIndex));
+
+        for (DeletedNote deleted : deletedNotes) {
+            notes.remove(deleted.note());
+        }
+
+        undoHistory.record(new DeleteNotesAction(deletedNotes));
 
         return true;
     }
@@ -70,6 +97,7 @@ public final class NoteEditorModel {
 
     public void beginNoteStateChange(Collection<EditorNote> changedNotes) {
         Objects.requireNonNull(changedNotes, "changedNotes cannot be null");
+
         if (activeStartStates != null) {
             throw new IllegalStateException("A note state change is already active");
         }
@@ -79,13 +107,18 @@ public final class NoteEditorModel {
             throw new IllegalArgumentException("At least one note must be provided");
         }
 
-        activeStartStates = new LinkedHashMap<>();
         for (EditorNote note : uniqueNotes) {
             if (!notes.contains(note)) {
                 throw new IllegalArgumentException("Note does not exist in model");
             }
-            activeStartStates.put(note, new NoteState(note));
         }
+
+        Map<EditorNote, NoteState> startStates = new LinkedHashMap<>();
+        for (EditorNote note : uniqueNotes) {
+            startStates.put(note, new NoteState(note));
+        }
+
+        activeStartStates = startStates;
     }
 
     public void endNoteStateChange() {
@@ -453,24 +486,26 @@ public final class NoteEditorModel {
         }
     }
 
-    private final class DeleteNoteAction implements UndoableAction {
+    private final class DeleteNotesAction implements UndoableAction {
 
-        private final EditorNote note;
-        private final int originalIndex;
+        private final List<DeletedNote> deletedNotes;
 
-        private DeleteNoteAction(EditorNote note, int originalIndex) {
-            this.note = note;
-            this.originalIndex = originalIndex;
+        private DeleteNotesAction(List<DeletedNote> deletedNotes) {
+            this.deletedNotes = new ArrayList<>(deletedNotes);
         }
 
         @Override
         public void undo() {
-            notes.add(originalIndex, note);
+            for (DeletedNote deleted : deletedNotes) {
+                notes.add(deleted.originalIndex(), deleted.note());
+            }
         }
 
         @Override
         public void redo() {
-            notes.remove(note);
+            for (DeletedNote deleted : deletedNotes) {
+                notes.remove(deleted.note());
+            }
         }
     }
 
@@ -480,8 +515,8 @@ public final class NoteEditorModel {
         private final Map<EditorNote, NoteState> endStates;
 
         private NoteStateChangeAction(Map<EditorNote, NoteState> startStates, Map<EditorNote, NoteState> endStates) {
-            this.startStates = startStates;
-            this.endStates = endStates;
+            this.startStates = new LinkedHashMap<>(startStates);
+            this.endStates = new LinkedHashMap<>(endStates);
         }
 
         @Override

@@ -713,4 +713,107 @@ public class NoteEditorModelTest {
         assertEquals(3.0, second.getStartBeat(), 0.000001);
         assertFalse(model.canUndo());
     }
+
+    @Test
+    public void deleteNotesRemovesAllRequestedNotes() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+        EditorNote c = new EditorNote(62, 2.0, 1.0);
+
+        model = new NoteEditorModel(List.of(a, b, c));
+
+        assertTrue(model.deleteNotes(List.of(a, c)));
+
+        assertEquals(List.of(b), model.getNotes());
+    }
+
+    @Test
+    public void deleteNotesRejectsUnknownNoteWithoutDeletingAnything() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+        EditorNote unknown = new EditorNote(62, 2.0, 1.0);
+        model = new NoteEditorModel(List.of(a, b));
+        assertFalse(model.deleteNotes(List.of(a, unknown)));
+        assertEquals(List.of(a, b), model.getNotes());
+    }
+
+    @Test
+    public void undoBatchDeleteRestoresOriginalOrderAndInstances() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+        EditorNote c = new EditorNote(62, 2.0, 1.0);
+        EditorNote d = new EditorNote(63, 3.0, 1.0);
+
+        model = new NoteEditorModel(List.of(a, b, c, d));
+
+        assertTrue(model.deleteNotes(List.of(b, d)));
+        assertTrue(model.undo());
+        assertEquals(4, model.getNotes().size());
+
+        assertSame(a, model.getNotes().get(0));
+        assertSame(b, model.getNotes().get(1));
+        assertSame(c, model.getNotes().get(2));
+        assertSame(d, model.getNotes().get(3));
+    }
+
+    @Test
+    public void batchDeleteCreatesSingleUndoAction() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+
+        model = new NoteEditorModel(List.of(a, b));
+
+        assertTrue(model.deleteNotes(List.of(a, b)));
+        assertTrue(model.getNotes().isEmpty());
+
+        assertTrue(model.undo());
+        assertEquals(2, model.getNotes().size());
+        assertFalse(model.canUndo());
+    }
+
+    @Test
+    public void redoBatchDeleteRemovesAllNotesAgain() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+
+        model = new NoteEditorModel(List.of(a, b));
+
+        assertTrue(model.deleteNotes(List.of(a, b)));
+        assertTrue(model.undo());
+        assertEquals(2, model.getNotes().size());
+        assertTrue(model.redo());
+
+        assertTrue(model.getNotes().isEmpty());
+    }
+
+    @Test
+    public void undoBatchDeleteRestoresOrderRegardlessOfDeleteOrder() {
+        EditorNote a = new EditorNote(60, 0.0, 1.0);
+        EditorNote b = new EditorNote(61, 1.0, 1.0);
+        EditorNote c = new EditorNote(62, 2.0, 1.0);
+        EditorNote d = new EditorNote(63, 3.0, 1.0);
+
+        model = new NoteEditorModel(List.of(a, b, c, d));
+
+        assertTrue(model.deleteNotes(List.of(d, b)));
+
+        assertTrue(model.undo());
+
+        assertEquals(List.of(a, b, c, d), model.getNotes());
+    }
+
+    @Test
+    public void failedBeginStateChangeDoesNotLeaveActiveChange() {
+        EditorNote note = new EditorNote(60, 0.0, 1.0);
+
+        EditorNote unknown = new EditorNote(61, 1.0, 1.0);
+
+        model = new NoteEditorModel(List.of(note));
+
+        assertThrows(IllegalArgumentException.class, () -> model.beginNoteStateChange(List.of(note, unknown)));
+
+        // Must still be possible afterwards.
+        model.beginNoteStateChange(note);
+        model.endNoteStateChange();
+    }
 }
