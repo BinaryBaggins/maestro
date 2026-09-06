@@ -34,6 +34,11 @@ public final class NoteEditorLayout {
 
     public static final Color SELECTED_NOTE_BORDER_COLOR = new Color(60, 90, 130);
 
+    public static final Color SELECTION_BOX_BORDER_COLOR = new Color(0, 120, 215);
+
+    //alpha value of 102 = 40% opacity
+    public static final Color SELECTION_BOX_FILL_COLOR = new Color(0, 102, 204, 102);
+
     private NoteEditorLayout() {
         // Prevent instantiation
     }

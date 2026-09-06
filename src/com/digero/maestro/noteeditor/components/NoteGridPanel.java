@@ -15,6 +15,9 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.swing.JPanel;
 
 public class NoteGridPanel extends JPanel {
@@ -25,6 +28,11 @@ public class NoteGridPanel extends JPanel {
     private final NoteEditorModel model;
     private final NoteEditorViewState viewState;
     private final NoteSelectionModel selectionModel = new NoteSelectionModel();
+
+    // Selection box state variables
+    private SelectionBox selectionBox;
+    private boolean additiveSelectionBox;
+    private Set<EditorNote> selectionBeforeBox = Set.of();
 
     private EditorNote dragNote;
 
@@ -70,6 +78,21 @@ public class NoteGridPanel extends JPanel {
         paintPitchRows(g);
         paintTimeGrid(g);
         paintNotes(g);
+        paintSelectionBox(g);
+    }
+
+    private void paintSelectionBox(Graphics g) {
+        if (selectionBox == null) {
+            return;
+        }
+        Rectangle bounds = selectionBox.getBounds();
+        g.setColor(NoteEditorLayout.SELECTION_BOX_FILL_COLOR);
+        g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        g.setColor(NoteEditorLayout.SELECTION_BOX_BORDER_COLOR);
+        g.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+        if (bounds.width > 2 && bounds.height > 2) {
+            g.drawRect(bounds.x + 1, bounds.y + 1, bounds.width - 2, bounds.height - 2);
+        }
     }
 
     private void paintPitchRows(Graphics g) {
@@ -333,6 +356,10 @@ public class NoteGridPanel extends JPanel {
         }
     }
 
+    public boolean hasNoteAt(Point point) {
+        return findNoteAt(point) != null;
+    }
+
     private EditorNote findNoteAt(Point point) {
         for (EditorNote note : model.getNotes()) {
             if (getNoteBounds(note).contains(point)) {
@@ -475,5 +502,81 @@ public class NoteGridPanel extends JPanel {
             .toList();
 
         selectionModel.setSelection(existingSelection);
+    }
+
+    public void handleSelectionClick(Point point, boolean ctrlDown) {
+        requestFocusInWindow();
+
+        EditorNote clickedNote = findNoteAt(point);
+
+        if (ctrlDown) {
+            if (clickedNote != null) {
+                selectionModel.toggle(clickedNote);
+            }
+            repaint();
+            return;
+        }
+
+        if (clickedNote == null) {
+            selectionModel.clearSelection();
+        } else {
+            selectionModel.setSelection(clickedNote);
+        }
+        repaint();
+    }
+
+    public void beginSelectionBox(Point point, boolean additive) {
+        requestFocusInWindow();
+
+        selectionBox = new SelectionBox(point);
+        additiveSelectionBox = additive;
+
+        selectionBeforeBox = new LinkedHashSet<>(selectionModel.getSelectedNotes());
+
+        if (!additive) {
+            selectionModel.clearSelection();
+        }
+
+        repaint();
+    }
+
+    public void updateSelectionBox(Point point) {
+        if (selectionBox == null) {
+            return;
+        }
+
+        selectionBox.update(point);
+
+        repaint();
+    }
+
+    public void endSelectionBox() {
+        if (selectionBox == null) {
+            return;
+        }
+
+        Rectangle box = selectionBox.getBounds();
+
+        Set<EditorNote> notesInBox = model
+            .getNotes()
+            .stream()
+            .filter(note -> box.intersects(getNoteBounds(note)))
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (additiveSelectionBox) {
+            Set<EditorNote> newSelection = new LinkedHashSet<>(selectionBeforeBox);
+
+            newSelection.addAll(notesInBox);
+
+            selectionModel.setSelection(newSelection);
+        } else {
+            selectionModel.setSelection(notesInBox);
+        }
+
+        selectionBox = null;
+        selectionBeforeBox = Set.of();
+        additiveSelectionBox = false;
+
+        repaint();
     }
 }
