@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.digero.maestro.noteeditor.NoteEditorLayout;
 import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -474,5 +475,242 @@ public class NoteEditorModelTest {
 
         assertEquals(2.0, note.getStartBeat(), 0.000001);
         assertEquals(2.0, note.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void moveNotesAppliesSameBeatDeltaToAllNotes() {
+        EditorNote first = new EditorNote(60, 1.0, 1.0);
+        EditorNote second = new EditorNote(61, 3.0, 2.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.moveNotes(List.of(first, second), 0, 2.5));
+
+        assertEquals(3.5, first.getStartBeat(), 0.000001);
+        assertEquals(5.5, second.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void moveNotesAppliesSamePitchDeltaToAllNotes() {
+        EditorNote first = new EditorNote(60, 0.0, 1.0);
+        EditorNote second = new EditorNote(64, 2.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.moveNotes(List.of(first, second), 5, 0.0));
+
+        assertEquals(65, first.getMidiNote());
+        assertEquals(69, second.getMidiNote());
+    }
+
+    @Test
+    public void moveNotesClampsWholeGroupAtBeatZero() {
+        EditorNote first = new EditorNote(60, 1.0, 1.0);
+        EditorNote second = new EditorNote(61, 3.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.moveNotes(List.of(first, second), 0, -5.0));
+
+        assertEquals(0.0, first.getStartBeat(), 0.000001);
+        assertEquals(2.0, second.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void moveNotesClampsWholeGroupAtMidiBounds() {
+        EditorNote first = new EditorNote(10, 0.0, 1.0);
+        EditorNote second = new EditorNote(100, 2.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.moveNotes(List.of(first, second), -20, 0.0));
+
+        assertEquals(0, first.getMidiNote());
+        assertEquals(90, second.getMidiNote());
+    }
+
+    @Test
+    public void moveNotesRejectsUnknownNoteWithoutChangingState() {
+        EditorNote note = new EditorNote(60, 1.0, 1.0);
+        EditorNote unknown = new EditorNote(64, 2.0, 1.0);
+        model = new NoteEditorModel(List.of(note));
+
+        assertThrows(IllegalArgumentException.class, () -> model.moveNotes(List.of(note, unknown), 2, 2.0));
+
+        assertEquals(60, note.getMidiNote());
+        assertEquals(1.0, note.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void groupMoveCollisionChangesNoNote() {
+        EditorNote first = new EditorNote(60, 0.0, 1.0);
+        EditorNote second = new EditorNote(61, 2.0, 1.0);
+        EditorNote obstacle = new EditorNote(60, 2.0, 1.0);
+
+        model = new NoteEditorModel(List.of(first, second, obstacle));
+
+        assertFalse(model.moveNotes(List.of(first, second), 0, 2.0));
+
+        assertEquals(0.0, first.getStartBeat(), 0.000001);
+        assertEquals(2.0, second.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void resizeNotesLeftAppliesSameEdgeDelta() {
+        EditorNote first = new EditorNote(60, 2.0, 2.0);
+        EditorNote second = new EditorNote(61, 5.0, 3.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.resizeNotesLeft(List.of(first, second), -0.5));
+
+        assertEquals(1.5, first.getStartBeat(), 0.000001);
+        assertEquals(2.5, first.getDurationBeats(), 0.000001);
+        assertEquals(4.5, second.getStartBeat(), 0.000001);
+        assertEquals(3.5, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void resizeNotesRightAppliesSameEdgeDelta() {
+        EditorNote first = new EditorNote(60, 0.0, 2.0);
+        EditorNote second = new EditorNote(61, 3.0, 3.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.resizeNotesRight(List.of(first, second), 0.5));
+
+        assertEquals(2.5, first.getDurationBeats(), 0.000001);
+        assertEquals(3.5, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void shortestSelectedNoteLimitsResizeForWholeGroup() {
+        EditorNote first = new EditorNote(60, 2.0, 2.0);
+
+        EditorNote second = new EditorNote(61, 5.0, NoteEditorLayout.SNAP_BEATS * 2);
+
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertTrue(model.resizeNotesLeft(List.of(first, second), NoteEditorLayout.SNAP_BEATS * 3));
+
+        // second can shrink by only one SNAP_BEATS,
+        // therefore the entire group moves by exactly that amount.
+        assertEquals(2.0 + NoteEditorLayout.SNAP_BEATS, first.getStartBeat(), 0.000001);
+
+        assertEquals(2.0 - NoteEditorLayout.SNAP_BEATS, first.getDurationBeats(), 0.000001);
+
+        assertEquals(5.0 + NoteEditorLayout.SNAP_BEATS, second.getStartBeat(), 0.000001);
+
+        assertEquals(NoteEditorLayout.SNAP_BEATS, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void groupResizeCollisionChangesNoNote() {
+        EditorNote first = new EditorNote(60, 0.0, 1.0);
+        EditorNote obstacle = new EditorNote(60, 2.0, 1.0);
+        EditorNote second = new EditorNote(60, 4.0, 1.0);
+        model = new NoteEditorModel(List.of(first, obstacle, second));
+
+        assertFalse(model.resizeNotesRight(List.of(first, second), 2.0));
+
+        assertEquals(1.0, first.getDurationBeats(), 0.000001);
+        assertEquals(1.0, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void groupResizeRejectsCollisionBetweenSelectedNotes() {
+        EditorNote first = new EditorNote(60, 0.0, 1.0);
+        EditorNote second = new EditorNote(60, 2.0, 1.0);
+
+        model = new NoteEditorModel(List.of(first, second));
+
+        assertFalse(model.resizeNotesRight(List.of(first, second), 2.0));
+
+        assertEquals(1.0, first.getDurationBeats(), 0.000001);
+        assertEquals(1.0, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void groupResizeUndoRestoresAllNotes() {
+        EditorNote first = new EditorNote(60, 2.0, 2.0);
+        EditorNote second = new EditorNote(64, 5.0, 3.0);
+
+        model = new NoteEditorModel(List.of(first, second));
+
+        model.beginNoteStateChange(List.of(first, second));
+
+        assertTrue(model.resizeNotesLeft(List.of(first, second), -0.5));
+
+        model.endNoteStateChange();
+
+        assertEquals(1.5, first.getStartBeat(), 0.000001);
+        assertEquals(2.5, first.getDurationBeats(), 0.000001);
+
+        assertEquals(4.5, second.getStartBeat(), 0.000001);
+        assertEquals(3.5, second.getDurationBeats(), 0.000001);
+
+        assertTrue(model.undo());
+
+        assertEquals(2.0, first.getStartBeat(), 0.000001);
+        assertEquals(2.0, first.getDurationBeats(), 0.000001);
+
+        assertEquals(5.0, second.getStartBeat(), 0.000001);
+        assertEquals(3.0, second.getDurationBeats(), 0.000001);
+    }
+
+    @Test
+    public void groupMoveUndoRestoresAllNotes() {
+        EditorNote first = new EditorNote(60, 1.0, 1.0);
+        EditorNote second = new EditorNote(64, 3.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        model.beginNoteStateChange(List.of(first, second));
+        assertTrue(model.moveNotes(List.of(first, second), 2, 1.5));
+        model.endNoteStateChange();
+
+        assertTrue(model.undo());
+
+        assertEquals(60, first.getMidiNote());
+        assertEquals(1.0, first.getStartBeat(), 0.000001);
+        assertEquals(64, second.getMidiNote());
+        assertEquals(3.0, second.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void groupMoveRedoRestoresAllNotes() {
+        EditorNote first = new EditorNote(60, 1.0, 1.0);
+        EditorNote second = new EditorNote(64, 3.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        model.beginNoteStateChange(List.of(first, second));
+        assertTrue(model.moveNotes(List.of(first, second), 2, 1.5));
+        model.endNoteStateChange();
+
+        assertTrue(model.undo());
+        assertTrue(model.redo());
+
+        assertEquals(62, first.getMidiNote());
+        assertEquals(2.5, first.getStartBeat(), 0.000001);
+        assertEquals(66, second.getMidiNote());
+        assertEquals(4.5, second.getStartBeat(), 0.000001);
+    }
+
+    @Test
+    public void multipleGroupDragUpdatesCreateOneUndoAction() {
+        EditorNote first = new EditorNote(60, 1.0, 1.0);
+        EditorNote second = new EditorNote(64, 3.0, 1.0);
+        model = new NoteEditorModel(List.of(first, second));
+
+        model.beginNoteStateChange(List.of(first, second));
+        assertTrue(model.moveNotes(List.of(first, second), 0, 0.25));
+        assertTrue(model.moveNotes(List.of(first, second), 1, 0.25));
+        assertTrue(model.moveNotes(List.of(first, second), 1, 0.5));
+        model.endNoteStateChange();
+
+        assertEquals(61, first.getMidiNote());
+        assertEquals(1.5, first.getStartBeat(), 0.000001);
+        assertEquals(65, second.getMidiNote());
+        assertEquals(3.5, second.getStartBeat(), 0.000001);
+
+        assertTrue(model.undo());
+        assertEquals(60, first.getMidiNote());
+        assertEquals(1.0, first.getStartBeat(), 0.000001);
+        assertEquals(64, second.getMidiNote());
+        assertEquals(3.0, second.getStartBeat(), 0.000001);
+        assertFalse(model.canUndo());
     }
 }
