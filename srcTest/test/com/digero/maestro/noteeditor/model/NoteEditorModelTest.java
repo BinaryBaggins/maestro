@@ -201,7 +201,7 @@ public class NoteEditorModelTest {
 
     @Test
     public void undoCreateRemovesNote() {
-        EditorNote note = model.createNote(60, 0.0, 1.0).orElseThrow();
+        model.createNote(60, 0.0, 1.0).orElseThrow();
 
         assertTrue(model.canUndo());
 

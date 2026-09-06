@@ -8,6 +8,7 @@ import com.digero.maestro.noteeditor.actions.NoteGridMouseListener;
 import com.digero.maestro.noteeditor.model.DragMode;
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.NoteEditorModel;
+import com.digero.maestro.noteeditor.model.NoteSelectionModel;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -23,7 +24,9 @@ public class NoteGridPanel extends JPanel {
     // Model and view state
     private final NoteEditorModel model;
     private final NoteEditorViewState viewState;
-    private EditorNote selectedNote;
+    private final NoteSelectionModel selectionModel = new NoteSelectionModel();
+
+    private EditorNote dragNote;
 
     // Dragging state variables
     private double dragOffsetBeats;
@@ -104,6 +107,10 @@ public class NoteGridPanel extends JPanel {
         for (EditorNote note : model.getNotes()) {
             paintNote(g, note);
         }
+
+        for (EditorNote note : selectionModel.getSelectedNotes()) {
+            drawSelectedNoteOverlay(g, note);
+        }
     }
 
     private void paintNote(Graphics g, EditorNote note) {
@@ -111,15 +118,17 @@ public class NoteGridPanel extends JPanel {
 
         g.setColor(NoteEditorLayout.NOTE_COLOR);
         g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    }
 
-        if (note == selectedNote) {
-            g.setColor(NoteEditorLayout.SELECTED_NOTE_BORDER_COLOR);
+    private void drawSelectedNoteOverlay(Graphics g, EditorNote note) {
+        Rectangle bounds = getNoteBounds(note);
 
-            g.drawRect(bounds.x, bounds.y, bounds.width - 1, bounds.height - 1);
+        g.setColor(NoteEditorLayout.SELECTED_NOTE_BORDER_COLOR);
 
-            if (bounds.width > 3 && bounds.height > 3) {
-                g.drawRect(bounds.x + 1, bounds.y + 1, bounds.width - 3, bounds.height - 3);
-            }
+        g.drawRect(bounds.x, bounds.y, bounds.width - 1, bounds.height - 1);
+
+        if (bounds.width > 3 && bounds.height > 3) {
+            g.drawRect(bounds.x + 1, bounds.y + 1, bounds.width - 3, bounds.height - 3);
         }
     }
 
@@ -129,9 +138,7 @@ public class NoteGridPanel extends JPanel {
         }
 
         double beat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-
         double startBeat = NoteEditorGeometry.snapBeat(beat);
-
         int midiNote = NoteEditorGeometry.getMidiNoteForY(point.y);
 
         EditorNote note = model
@@ -142,18 +149,21 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
-        selectedNote = note;
+        selectionModel.setSelection(note);
 
         repaint();
     }
 
     public void deleteSelectedNote() {
-        if (selectedNote == null) {
+        // for now we only support deleting a single selected note at a time
+        if (selectionModel.getSelectedNotes().size() != 1) {
             return;
         }
 
-        if (model.deleteNote(selectedNote)) {
-            selectedNote = null;
+        EditorNote note = selectionModel.getSelectedNotes().iterator().next();
+
+        if (model.deleteNote(note)) {
+            selectionModel.clearSelection();
             repaint();
         }
     }
@@ -183,33 +193,37 @@ public class NoteGridPanel extends JPanel {
     public void beginNoteDrag(Point point) {
         requestFocusInWindow();
 
-        selectedNote = findNoteAt(point);
+        dragNote = findNoteAt(point);
 
-        if (selectedNote == null) {
+        if (dragNote == null) {
             dragMode = DragMode.NONE;
             repaint();
             return;
         }
 
-        model.beginNoteStateChange(selectedNote);
+        if (!selectionModel.isSelected(dragNote)) {
+            selectionModel.setSelection(dragNote);
+        }
+
+        model.beginNoteStateChange(dragNote);
 
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
-        dragMode = getDragMode(selectedNote, point);
+        dragMode = getDragMode(dragNote, point);
 
         switch (dragMode) {
             case MOVE -> {
-                dragOffsetBeats = mouseBeat - selectedNote.getStartBeat();
+                dragOffsetBeats = mouseBeat - dragNote.getStartBeat();
 
-                dragStartBeat = selectedNote.getStartBeat();
+                dragStartBeat = dragNote.getStartBeat();
                 dragStartY = point.y;
-                dragStartMidiNote = selectedNote.getMidiNote();
+                dragStartMidiNote = dragNote.getMidiNote();
             }
             case RESIZE_LEFT -> {
-                resizeOffsetBeats = mouseBeat - selectedNote.getStartBeat();
+                resizeOffsetBeats = mouseBeat - dragNote.getStartBeat();
             }
             case RESIZE_RIGHT -> {
-                double endBeat = selectedNote.getStartBeat() + selectedNote.getDurationBeats();
+                double endBeat = dragNote.getStartBeat() + dragNote.getDurationBeats();
 
                 resizeOffsetBeats = mouseBeat - endBeat;
             }
@@ -232,7 +246,7 @@ public class NoteGridPanel extends JPanel {
     }
 
     public void dragSelectedNoteTo(Point point) {
-        if (selectedNote == null) {
+        if (dragNote == null) {
             return;
         }
 
@@ -246,7 +260,7 @@ public class NoteGridPanel extends JPanel {
     }
 
     private void moveSelectedNoteTo(Point point) {
-        if (selectedNote == null) {
+        if (dragNote == null) {
             return;
         }
 
@@ -266,14 +280,14 @@ public class NoteGridPanel extends JPanel {
 
         newMidiNote = Math.max(0, Math.min(newMidiNote, NoteEditorLayout.MIDI_NOTE_COUNT - 1));
 
-        double duration = selectedNote.getDurationBeats();
+        double duration = dragNote.getDurationBeats();
 
-        if (!model.canPlaceNote(selectedNote, newMidiNote, newStartBeat, duration)) {
+        if (!model.canPlaceNote(dragNote, newMidiNote, newStartBeat, duration)) {
             boolean movingRight = newStartBeat > dragStartBeat;
             boolean movingLeft = newStartBeat < dragStartBeat;
 
             Double snappedStartBeat = findNearestValidStartBeat(
-                selectedNote,
+                dragNote,
                 newMidiNote,
                 newStartBeat,
                 duration,
@@ -289,12 +303,12 @@ public class NoteGridPanel extends JPanel {
             newStartBeat = snappedStartBeat;
 
             // The snapped position itself must still be valid.
-            if (!model.canPlaceNote(selectedNote, newMidiNote, newStartBeat, duration)) {
+            if (!model.canPlaceNote(dragNote, newMidiNote, newStartBeat, duration)) {
                 return;
             }
         }
 
-        if (model.moveNote(selectedNote, newMidiNote, newStartBeat)) {
+        if (model.moveNote(dragNote, newMidiNote, newStartBeat)) {
             repaint();
         }
     }
@@ -304,7 +318,7 @@ public class NoteGridPanel extends JPanel {
 
         double newEndBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
 
-        if (model.resizeNoteRight(selectedNote, newEndBeat)) {
+        if (model.resizeNoteRight(dragNote, newEndBeat)) {
             repaint();
         }
     }
@@ -314,7 +328,7 @@ public class NoteGridPanel extends JPanel {
 
         double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
 
-        if (model.resizeNoteLeft(selectedNote, newStartBeat)) {
+        if (model.resizeNoteLeft(dragNote, newStartBeat)) {
             repaint();
         }
     }
@@ -445,18 +459,21 @@ public class NoteGridPanel extends JPanel {
         repaint();
     }
 
+    /**
+     * Removes any notes from the selection that no longer exist in the model.
+     */
     private void clearSelectionIfMissing() {
-        if (selectedNote == null) {
-            return;
-        }
-
-        boolean selectedNoteExists = model
-            .getNotes()
+        var existingSelection = selectionModel
+            .getSelectedNotes()
             .stream()
-            .anyMatch(note -> note == selectedNote);
+            .filter(selected ->
+                model
+                    .getNotes()
+                    .stream()
+                    .anyMatch(note -> note == selected)
+            )
+            .toList();
 
-        if (!selectedNoteExists) {
-            selectedNote = null;
-        }
+        selectionModel.setSelection(existingSelection);
     }
 }
