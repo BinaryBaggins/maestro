@@ -5,6 +5,8 @@ import com.digero.maestro.noteeditor.NoteEditorLayout;
 import com.digero.maestro.noteeditor.NoteEditorViewState;
 import com.digero.maestro.noteeditor.actions.NoteEditorKeyBindings;
 import com.digero.maestro.noteeditor.actions.NoteGridMouseListener;
+import com.digero.maestro.noteeditor.interaction.GroupMoveResolver;
+import com.digero.maestro.noteeditor.interaction.ResolvedGroupMove;
 import com.digero.maestro.noteeditor.model.DragMode;
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.NoteEditorModel;
@@ -16,10 +18,11 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.swing.JPanel;
@@ -315,11 +318,26 @@ public class NoteGridPanel extends JPanel {
             return;
         }
 
-        Double resolvedDeltaBeat = findNearestValidGroupMoveDelta(deltaMidiNotes, deltaBeat, mouseBeat);
-        if (resolvedDeltaBeat == null) {
+        List<NoteSnapshot> movingSnapshots = List.copyOf(dragStartStates.values());
+        List<NoteSnapshot> blockingSnapshots = model
+            .getNotes()
+            .stream()
+            .filter(note -> !dragNotes.contains(note))
+            .map(NoteSnapshot::new)
+            .toList();
+
+        Optional<ResolvedGroupMove> resolvedMove = GroupMoveResolver.resolve(
+            movingSnapshots,
+            blockingSnapshots,
+            deltaMidiNotes,
+            deltaBeat,
+            mouseBeat
+        );
+        if (resolvedMove.isEmpty()) {
             return;
         }
-        if (model.moveNotes(dragNotes, deltaMidiNotes, resolvedDeltaBeat)) {
+        ResolvedGroupMove resolved = resolvedMove.orElseThrow();
+        if (model.moveNotes(dragNotes, resolved.midiDelta(), resolved.beatDelta())) {
             repaint();
         }
     }
@@ -383,118 +401,6 @@ public class NoteGridPanel extends JPanel {
             case MOVE -> setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
             default -> setCursor(Cursor.getDefaultCursor());
         }
-    }
-
-    private Double findNearestValidGroupMoveDelta(int requestedMidiDelta, double requestedBeatDelta, double mouseBeat) {
-        boolean movingRight = requestedBeatDelta > 0;
-        boolean movingLeft = requestedBeatDelta < 0;
-
-        if (!movingRight && !movingLeft) {
-            return null;
-        }
-
-        int midiDelta = clampGroupMidiDelta(requestedMidiDelta);
-
-        double minimumBeatDelta = getMinimumGroupBeatDelta();
-
-        double candidateDelta = Math.max(requestedBeatDelta, minimumBeatDelta);
-
-        Set<EditorNote> crossedBlockers = new HashSet<>();
-
-        while (true) {
-            GroupMoveCollision collision = findGroupMoveCollision(midiDelta, candidateDelta);
-
-            if (collision == null) {
-                return candidateDelta;
-            }
-
-            NoteSnapshot movingState = dragStartStates.get(collision.movingNote());
-
-            EditorNote blocker = collision.blockingNote();
-
-            double blockerStart = blocker.getStartBeat();
-
-            double blockerEnd = blockerStart + blocker.getDurationBeats();
-
-            /*
-             * A blocker has to be crossed by the actual mouse
-             * only once for the entire coupled group.
-             */
-            if (!crossedBlockers.contains(blocker)) {
-                boolean mouseHasCrossed = movingRight ? mouseBeat >= blockerEnd : mouseBeat <= blockerStart;
-
-                if (!mouseHasCrossed) {
-                    return null;
-                }
-
-                crossedBlockers.add(blocker);
-            }
-
-            if (movingRight) {
-                double requiredDelta = blockerEnd - movingState.startBeat();
-
-                candidateDelta = Math.max(candidateDelta, requiredDelta);
-            } else {
-                double requiredDelta = blockerStart - movingState.durationBeats() - movingState.startBeat();
-
-                if (requiredDelta < minimumBeatDelta) {
-                    return null;
-                }
-
-                candidateDelta = Math.min(candidateDelta, requiredDelta);
-            }
-        }
-    }
-
-    private int clampGroupMidiDelta(int requestedDelta) {
-        int minimumDelta = Integer.MIN_VALUE;
-        int maximumDelta = Integer.MAX_VALUE;
-
-        for (NoteSnapshot state : dragStartStates.values()) {
-            minimumDelta = Math.max(minimumDelta, -state.midiNote());
-            maximumDelta = Math.min(maximumDelta, NoteEditorLayout.MIDI_NOTE_COUNT - 1 - state.midiNote());
-        }
-
-        return Math.max(minimumDelta, Math.min(requestedDelta, maximumDelta));
-    }
-
-    private double getMinimumGroupBeatDelta() {
-        double minimumDelta = Double.NEGATIVE_INFINITY;
-
-        for (NoteSnapshot state : dragStartStates.values()) {
-            minimumDelta = Math.max(minimumDelta, -state.startBeat());
-        }
-
-        return minimumDelta;
-    }
-
-    private GroupMoveCollision findGroupMoveCollision(int midiDelta, double beatDelta) {
-        for (EditorNote movingNote : dragNotes) {
-            NoteSnapshot state = dragStartStates.get(movingNote);
-            int targetMidiNote = state.midiNote() + midiDelta;
-            double targetStartBeat = state.startBeat() + beatDelta;
-            double targetEndBeat = targetStartBeat + state.durationBeats();
-
-            for (EditorNote blocker : model.getNotes()) {
-                // Notes in the moving group are not blockers.
-                if (dragNotes.contains(blocker)) {
-                    continue;
-                }
-
-                if (blocker.getMidiNote() != targetMidiNote) {
-                    continue;
-                }
-
-                double blockerStart = blocker.getStartBeat();
-                double blockerEnd = blockerStart + blocker.getDurationBeats();
-
-                if (targetStartBeat < blockerEnd && targetEndBeat > blockerStart) {
-                    return new GroupMoveCollision(movingNote, blocker);
-                }
-            }
-        }
-
-        return null;
     }
 
     public void undo() {
