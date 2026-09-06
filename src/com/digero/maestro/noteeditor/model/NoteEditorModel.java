@@ -20,12 +20,6 @@ public final class NoteEditorModel {
     private final List<EditorNote> notes;
     private Map<EditorNote, NoteState> activeStartStates;
 
-    private record NoteState(int midiNote, double startBeat, double durationBeats) {
-        private NoteState(EditorNote note) {
-            this(note.getMidiNote(), note.getStartBeat(), note.getDurationBeats());
-        }
-    }
-
     public NoteEditorModel(List<EditorNote> notes) {
         this.notes = new ArrayList<>(Objects.requireNonNull(notes));
         this.undoHistory = new UndoHistory();
@@ -505,9 +499,9 @@ public final class NoteEditorModel {
                 EditorNote note = entry.getKey();
                 NoteState state = entry.getValue();
 
-                note.setMidiNote(state.midiNote);
-                note.setStartBeat(state.startBeat);
-                note.setDurationBeats(state.durationBeats);
+                note.setMidiNote(state.midiNote());
+                note.setStartBeat(state.startBeat());
+                note.setDurationBeats(state.durationBeats());
             }
         }
     }

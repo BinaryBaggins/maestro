@@ -15,7 +15,10 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.swing.JPanel;
@@ -35,12 +38,15 @@ public class NoteGridPanel extends JPanel {
     private Set<EditorNote> selectionBeforeBox = Set.of();
 
     private EditorNote dragNote;
+    private Set<EditorNote> dragNotes = Set.of();
+    private double dragStartEndBeat;
 
     // Dragging state variables
     private double dragOffsetBeats;
     private int dragStartY;
-    private int dragStartMidiNote;
     private double dragStartBeat;
+
+    private Map<EditorNote, DragStartState> dragStartStates = Map.of();
 
     // Resizing state variables
     private double resizeOffsetBeats;
@@ -228,27 +234,35 @@ public class NoteGridPanel extends JPanel {
             selectionModel.setSelection(dragNote);
         }
 
-        model.beginNoteStateChange(dragNote);
+        dragNotes = new LinkedHashSet<>(selectionModel.getSelectedNotes());
+
+        Map<EditorNote, DragStartState> startStates = new LinkedHashMap<>();
+
+        for (EditorNote note : dragNotes) {
+            startStates.put(note, new DragStartState(note.getMidiNote(), note.getStartBeat(), note.getDurationBeats()));
+        }
+
+        dragStartStates = startStates;
+
+        model.beginNoteStateChange(dragNotes);
 
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
 
         dragMode = getDragMode(dragNote, point);
 
+        dragStartBeat = dragNote.getStartBeat();
+        dragStartEndBeat = dragNote.getStartBeat() + dragNote.getDurationBeats();
+        dragStartY = point.y;
+
         switch (dragMode) {
             case MOVE -> {
-                dragOffsetBeats = mouseBeat - dragNote.getStartBeat();
-
-                dragStartBeat = dragNote.getStartBeat();
-                dragStartY = point.y;
-                dragStartMidiNote = dragNote.getMidiNote();
+                dragOffsetBeats = mouseBeat - dragStartBeat;
             }
             case RESIZE_LEFT -> {
-                resizeOffsetBeats = mouseBeat - dragNote.getStartBeat();
+                resizeOffsetBeats = mouseBeat - dragStartBeat;
             }
             case RESIZE_RIGHT -> {
-                double endBeat = dragNote.getStartBeat() + dragNote.getDurationBeats();
-
-                resizeOffsetBeats = mouseBeat - endBeat;
+                resizeOffsetBeats = mouseBeat - dragStartEndBeat;
             }
             default -> {
             }
@@ -258,14 +272,16 @@ public class NoteGridPanel extends JPanel {
     }
 
     public void endNoteDrag() {
-        /* This guard is necessary because this method is called
-           on mouse release, even if no note was being dragged. */
         if (dragMode == DragMode.NONE) {
             return;
         }
 
         model.endNoteStateChange();
+
         dragMode = DragMode.NONE;
+        dragNote = null;
+        dragNotes = Set.of();
+        dragStartStates = Map.of();
     }
 
     public void dragSelectedNoteTo(Point point) {
@@ -274,84 +290,56 @@ public class NoteGridPanel extends JPanel {
         }
 
         switch (dragMode) {
-            case MOVE -> moveSelectedNoteTo(point);
-            case RESIZE_LEFT -> resizeSelectedNoteLeft(point);
-            case RESIZE_RIGHT -> resizeSelectedNoteRight(point);
+            case MOVE -> moveSelectedNotesTo(point);
+            case RESIZE_LEFT -> resizeSelectedNotesLeft(point);
+            case RESIZE_RIGHT -> resizeSelectedNotesRight(point);
             default -> {
             }
         }
     }
 
-    private void moveSelectedNoteTo(Point point) {
+    private void moveSelectedNotesTo(Point point) {
         if (dragNote == null) {
             return;
         }
 
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-
         double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - dragOffsetBeats);
-
-        if (newStartBeat < 0) {
-            newStartBeat = 0;
-        }
-
+        double deltaBeat = newStartBeat - dragStartBeat;
         int deltaY = point.y - dragStartY;
-
         int deltaNotes = Math.round((float) deltaY / NoteEditorLayout.NOTE_HEIGHT);
+        int deltaMidiNotes = -deltaNotes;
 
-        int newMidiNote = dragStartMidiNote - deltaNotes;
-
-        newMidiNote = Math.max(0, Math.min(newMidiNote, NoteEditorLayout.MIDI_NOTE_COUNT - 1));
-
-        double duration = dragNote.getDurationBeats();
-
-        if (!model.canPlaceNote(dragNote, newMidiNote, newStartBeat, duration)) {
-            boolean movingRight = newStartBeat > dragStartBeat;
-            boolean movingLeft = newStartBeat < dragStartBeat;
-
-            Double snappedStartBeat = findNearestValidStartBeat(
-                dragNote,
-                newMidiNote,
-                newStartBeat,
-                duration,
-                mouseBeat,
-                movingRight,
-                movingLeft
-            );
-
-            if (snappedStartBeat == null) {
-                return;
-            }
-
-            newStartBeat = snappedStartBeat;
-
-            // The snapped position itself must still be valid.
-            if (!model.canPlaceNote(dragNote, newMidiNote, newStartBeat, duration)) {
-                return;
-            }
+        if (model.moveNotes(dragNotes, deltaMidiNotes, deltaBeat)) {
+            repaint();
+            return;
         }
 
-        if (model.moveNote(dragNote, newMidiNote, newStartBeat)) {
+        Double resolvedDeltaBeat = findNearestValidGroupMoveDelta(deltaMidiNotes, deltaBeat, mouseBeat);
+        if (resolvedDeltaBeat == null) {
+            return;
+        }
+        if (model.moveNotes(dragNotes, deltaMidiNotes, resolvedDeltaBeat)) {
             repaint();
         }
     }
 
-    private void resizeSelectedNoteRight(Point point) {
+    private void resizeSelectedNotesRight(Point point) {
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-
         double newEndBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
+        double deltaEndBeat = newEndBeat - dragStartEndBeat;
 
-        if (model.resizeNoteRight(dragNote, newEndBeat)) {
+        if (model.resizeNotesRight(dragNotes, deltaEndBeat)) {
             repaint();
         }
     }
 
-    private void resizeSelectedNoteLeft(Point point) {
+    private void resizeSelectedNotesLeft(Point point) {
         double mouseBeat = NoteEditorGeometry.getBeatForX(point.x, viewState.getPixelsPerBeat());
-
         double newStartBeat = NoteEditorGeometry.snapBeat(mouseBeat - resizeOffsetBeats);
+        double deltaStartBeat = newStartBeat - dragStartBeat;
 
-        if (model.resizeNoteLeft(dragNote, newStartBeat)) {
+        if (model.resizeNotesLeft(dragNotes, deltaStartBeat)) {
             repaint();
         }
     }
@@ -397,71 +385,112 @@ public class NoteGridPanel extends JPanel {
         }
     }
 
-    /**
-     * Resolves the desired (overlapping) start beat to the nearest valid start beat in the
-     * direction of movement. Notes fully crossed by the mouse are skipped over one after another
-     * (so a whole crossed chain can be jumped in one drag step). As soon as a remaining obstacle
-     * hasn't been passed by the mouse yet, no snap happens at all - the note must not jump while
-     * the mouse is still positioned on the blocking note.
-     */
-    private Double findNearestValidStartBeat(
-        EditorNote editedNote,
-        int midiNote,
-        double startBeat,
-        double durationBeats,
-        double mouseBeat,
-        boolean movingRight,
-        boolean movingLeft
-    ) {
+    private Double findNearestValidGroupMoveDelta(int requestedMidiDelta, double requestedBeatDelta, double mouseBeat) {
+        boolean movingRight = requestedBeatDelta > 0;
+        boolean movingLeft = requestedBeatDelta < 0;
+
         if (!movingRight && !movingLeft) {
             return null;
         }
 
-        double candidateStart = startBeat;
+        int midiDelta = clampGroupMidiDelta(requestedMidiDelta);
+
+        double minimumBeatDelta = getMinimumGroupBeatDelta();
+
+        double candidateDelta = Math.max(requestedBeatDelta, minimumBeatDelta);
+
+        Set<EditorNote> crossedBlockers = new HashSet<>();
 
         while (true) {
-            EditorNote blocker = findOverlappingNote(editedNote, midiNote, candidateStart, durationBeats);
+            GroupMoveCollision collision = findGroupMoveCollision(midiDelta, candidateDelta);
 
-            if (blocker == null) {
-                return Math.max(0, candidateStart);
+            if (collision == null) {
+                return candidateDelta;
             }
 
-            boolean mouseHasCrossed = movingRight
-                ? mouseBeat >= blocker.getStartBeat() + blocker.getDurationBeats()
-                : mouseBeat <= blocker.getStartBeat();
+            DragStartState movingState = dragStartStates.get(collision.movingNote());
 
-            if (!mouseHasCrossed) {
-                return null;
+            EditorNote blocker = collision.blockingNote();
+
+            double blockerStart = blocker.getStartBeat();
+
+            double blockerEnd = blockerStart + blocker.getDurationBeats();
+
+            /*
+             * A blocker has to be crossed by the actual mouse
+             * only once for the entire coupled group.
+             */
+            if (!crossedBlockers.contains(blocker)) {
+                boolean mouseHasCrossed = movingRight ? mouseBeat >= blockerEnd : mouseBeat <= blockerStart;
+
+                if (!mouseHasCrossed) {
+                    return null;
+                }
+
+                crossedBlockers.add(blocker);
             }
 
-            candidateStart = movingRight
-                ? blocker.getStartBeat() + blocker.getDurationBeats()
-                : blocker.getStartBeat() - durationBeats;
+            if (movingRight) {
+                double requiredDelta = blockerEnd - movingState.startBeat();
+
+                candidateDelta = Math.max(candidateDelta, requiredDelta);
+            } else {
+                double requiredDelta = blockerStart - movingState.durationBeats() - movingState.startBeat();
+
+                if (requiredDelta < minimumBeatDelta) {
+                    return null;
+                }
+
+                candidateDelta = Math.min(candidateDelta, requiredDelta);
+            }
         }
     }
 
-    private EditorNote findOverlappingNote(
-        EditorNote editedNote,
-        int midiNote,
-        double startBeat,
-        double durationBeats
-    ) {
-        double endBeat = startBeat + durationBeats;
+    private int clampGroupMidiDelta(int requestedDelta) {
+        int minimumDelta = Integer.MIN_VALUE;
+        int maximumDelta = Integer.MAX_VALUE;
 
-        for (EditorNote note : model.getNotes()) {
-            if (note == editedNote) {
-                continue;
-            }
+        for (DragStartState state : dragStartStates.values()) {
+            minimumDelta = Math.max(minimumDelta, -state.midiNote());
+            maximumDelta = Math.min(maximumDelta, NoteEditorLayout.MIDI_NOTE_COUNT - 1 - state.midiNote());
+        }
 
-            if (note.getMidiNote() != midiNote) {
-                continue;
-            }
+        return Math.max(minimumDelta, Math.min(requestedDelta, maximumDelta));
+    }
 
-            double otherStart = note.getStartBeat();
-            double otherEnd = otherStart + note.getDurationBeats();
+    private double getMinimumGroupBeatDelta() {
+        double minimumDelta = Double.NEGATIVE_INFINITY;
 
-            if (startBeat < otherEnd && endBeat > otherStart) {
-                return note;
+        for (DragStartState state : dragStartStates.values()) {
+            minimumDelta = Math.max(minimumDelta, -state.startBeat());
+        }
+
+        return minimumDelta;
+    }
+
+    private GroupMoveCollision findGroupMoveCollision(int midiDelta, double beatDelta) {
+        for (EditorNote movingNote : dragNotes) {
+            DragStartState state = dragStartStates.get(movingNote);
+            int targetMidiNote = state.midiNote() + midiDelta;
+            double targetStartBeat = state.startBeat() + beatDelta;
+            double targetEndBeat = targetStartBeat + state.durationBeats();
+
+            for (EditorNote blocker : model.getNotes()) {
+                // Notes in the moving group are not blockers.
+                if (dragNotes.contains(blocker)) {
+                    continue;
+                }
+
+                if (blocker.getMidiNote() != targetMidiNote) {
+                    continue;
+                }
+
+                double blockerStart = blocker.getStartBeat();
+                double blockerEnd = blockerStart + blocker.getDurationBeats();
+
+                if (targetStartBeat < blockerEnd && targetEndBeat > blockerStart) {
+                    return new GroupMoveCollision(movingNote, blocker);
+                }
             }
         }
 
