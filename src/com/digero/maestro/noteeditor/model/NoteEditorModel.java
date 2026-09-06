@@ -130,6 +130,20 @@ public final class NoteEditorModel {
         activeStartStates = null;
     }
 
+    /**
+     * Moves all notes by the same relative pitch and beat deltas.
+     *
+     * <p>The deltas are applied to the notes' current state, or to the active
+     * state-change start state when a state change is in progress. The whole
+     * group is clamped to the MIDI and beat-zero boundaries. If the resulting
+     * group would collide with another note, no note is changed.</p>
+     *
+     * @param notesToMove notes to move as one group
+     * @param deltaMidiNotes relative MIDI-note delta applied to every note
+     * @param deltaBeats relative start-beat delta applied to every note
+     * @return true if at least one note changed, false if the group is empty,
+     *         unchanged, or the requested result collides with another note
+     */
     public boolean moveNotes(Collection<EditorNote> notesToMove, int deltaMidiNotes, double deltaBeats) {
         Set<EditorNote> movingNotes = validateNoteGroup(notesToMove);
 
@@ -210,6 +224,18 @@ public final class NoteEditorModel {
         return changed;
     }
 
+    /**
+     * Resizes all notes by moving their left edges by the same relative delta.
+     * A positive delta moves each left edge right and shortens each note; a
+     * negative delta moves each left edge left and lengthens each note. The
+     * group is clamped so no note starts before beat zero or becomes shorter
+     * than the minimum snap duration. Collisions reject the whole operation.
+     *
+     * @param notesToResize notes to resize as one group
+     * @param deltaStartBeat relative left-edge delta applied to every note
+     * @return true if at least one note changed, false if the group is empty,
+     *         unchanged, or the requested result is invalid
+     */
     public boolean resizeNotesLeft(Collection<EditorNote> notesToResize, double deltaStartBeat) {
         Set<EditorNote> resizedNotes = validateNoteGroup(notesToResize);
 
@@ -250,6 +276,17 @@ public final class NoteEditorModel {
         return applyTargetStates(targetStates);
     }
 
+    /**
+     * Resizes all notes by moving their right edges by the same relative delta.
+     * A positive delta lengthens each note and a negative delta shortens each
+     * note. The group is clamped so no note becomes shorter than the minimum
+     * snap duration. Collisions reject the whole operation.
+     *
+     * @param notesToResize notes to resize as one group
+     * @param deltaEndBeat relative right-edge delta applied to every note
+     * @return true if at least one note changed, false if the group is empty,
+     *         unchanged, or the requested result is invalid
+     */
     public boolean resizeNotesRight(Collection<EditorNote> notesToResize, double deltaEndBeat) {
         Set<EditorNote> resizedNotes = validateNoteGroup(notesToResize);
 
