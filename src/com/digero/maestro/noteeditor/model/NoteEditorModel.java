@@ -19,7 +19,7 @@ public final class NoteEditorModel {
 
     private final UndoHistory undoHistory;
     private final List<EditorNote> notes;
-    private Map<EditorNote, NoteState> activeStartStates;
+    private Map<EditorNote, NoteSnapshot> activeStartStates;
 
     public NoteEditorModel(List<EditorNote> notes) {
         this.notes = new ArrayList<>(Objects.requireNonNull(notes));
@@ -105,9 +105,9 @@ public final class NoteEditorModel {
             }
         }
 
-        Map<EditorNote, NoteState> startStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> startStates = new LinkedHashMap<>();
         for (EditorNote note : uniqueNotes) {
-            startStates.put(note, new NoteState(note));
+            startStates.put(note, new NoteSnapshot(note));
         }
 
         activeStartStates = startStates;
@@ -118,9 +118,9 @@ public final class NoteEditorModel {
             throw new IllegalStateException("No note state change is active");
         }
 
-        Map<EditorNote, NoteState> endStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> endStates = new LinkedHashMap<>();
         for (EditorNote note : activeStartStates.keySet()) {
-            endStates.put(note, new NoteState(note));
+            endStates.put(note, new NoteSnapshot(note));
         }
 
         if (!activeStartStates.equals(endStates)) {
@@ -156,7 +156,7 @@ public final class NoteEditorModel {
         double minimumBeatDelta = Double.NEGATIVE_INFINITY;
 
         for (EditorNote note : movingNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             minimumMidiDelta = Math.max(minimumMidiDelta, -base.midiNote());
 
@@ -169,14 +169,14 @@ public final class NoteEditorModel {
 
         double appliedBeatDelta = Math.max(deltaBeats, minimumBeatDelta);
 
-        Map<EditorNote, NoteState> targetStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> targetStates = new LinkedHashMap<>();
 
         for (EditorNote note : movingNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             targetStates.put(
                 note,
-                new NoteState(
+                new NoteSnapshot(
                     base.midiNote() + appliedMidiDelta,
                     base.startBeat() + appliedBeatDelta,
                     base.durationBeats()
@@ -205,14 +205,14 @@ public final class NoteEditorModel {
         return result;
     }
 
-    private boolean applyTargetStates(Map<EditorNote, NoteState> targetStates) {
+    private boolean applyTargetStates(Map<EditorNote, NoteSnapshot> targetStates) {
         boolean changed = false;
 
         for (var entry : targetStates.entrySet()) {
             EditorNote note = entry.getKey();
-            NoteState target = entry.getValue();
+            NoteSnapshot target = entry.getValue();
 
-            if (!new NoteState(note).equals(target)) {
+            if (!new NoteSnapshot(note).equals(target)) {
                 changed = true;
             }
 
@@ -247,7 +247,7 @@ public final class NoteEditorModel {
         double maximumDelta = Double.POSITIVE_INFINITY;
 
         for (EditorNote note : resizedNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             // Left edge cannot move before beat 0.
             minimumDelta = Math.max(minimumDelta, -base.startBeat());
@@ -258,14 +258,14 @@ public final class NoteEditorModel {
 
         double appliedDelta = Math.max(minimumDelta, Math.min(deltaStartBeat, maximumDelta));
 
-        Map<EditorNote, NoteState> targetStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> targetStates = new LinkedHashMap<>();
 
         for (EditorNote note : resizedNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             targetStates.put(
                 note,
-                new NoteState(base.midiNote(), base.startBeat() + appliedDelta, base.durationBeats() - appliedDelta)
+                new NoteSnapshot(base.midiNote(), base.startBeat() + appliedDelta, base.durationBeats() - appliedDelta)
             );
         }
 
@@ -297,21 +297,21 @@ public final class NoteEditorModel {
         double minimumDelta = Double.NEGATIVE_INFINITY;
 
         for (EditorNote note : resizedNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             minimumDelta = Math.max(minimumDelta, NoteEditorLayout.SNAP_BEATS - base.durationBeats());
         }
 
         double appliedDelta = Math.max(deltaEndBeat, minimumDelta);
 
-        Map<EditorNote, NoteState> targetStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> targetStates = new LinkedHashMap<>();
 
         for (EditorNote note : resizedNotes) {
-            NoteState base = getBaseState(note);
+            NoteSnapshot base = getBaseState(note);
 
             targetStates.put(
                 note,
-                new NoteState(base.midiNote(), base.startBeat(), base.durationBeats() + appliedDelta)
+                new NoteSnapshot(base.midiNote(), base.startBeat(), base.durationBeats() + appliedDelta)
             );
         }
 
@@ -352,8 +352,8 @@ public final class NoteEditorModel {
      * @param targetStates A map of notes to their desired target states.
      * @return true if the target states can be applied, false otherwise.
      */
-    private boolean canApplyStates(Map<EditorNote, NoteState> targetStates) {
-        for (NoteState state : targetStates.values()) {
+    private boolean canApplyStates(Map<EditorNote, NoteSnapshot> targetStates) {
+        for (NoteSnapshot state : targetStates.values()) {
             // midi note must be in range
             if (state.midiNote() < 0 || state.midiNote() >= NoteEditorLayout.MIDI_NOTE_COUNT) {
                 return false;
@@ -370,11 +370,11 @@ public final class NoteEditorModel {
 
         for (int i = 0; i < notes.size(); i++) {
             EditorNote first = notes.get(i);
-            NoteState firstState = targetStates.getOrDefault(first, new NoteState(first));
+                NoteSnapshot firstState = targetStates.getOrDefault(first, new NoteSnapshot(first));
 
             for (int j = i + 1; j < notes.size(); j++) {
                 EditorNote second = notes.get(j);
-                NoteState secondState = targetStates.getOrDefault(second, new NoteState(second));
+                NoteSnapshot secondState = targetStates.getOrDefault(second, new NoteSnapshot(second));
 
                 if (firstState.midiNote() != secondState.midiNote()) {
                     continue;
@@ -401,14 +401,14 @@ public final class NoteEditorModel {
      * @param note The note for which to get the base state.
      * @return The base state of the note.
      */
-    private NoteState getBaseState(EditorNote note) {
+    private NoteSnapshot getBaseState(EditorNote note) {
         if (activeStartStates != null) {
-            NoteState activeState = activeStartStates.get(note);
+            NoteSnapshot activeState = activeStartStates.get(note);
             if (activeState != null) {
                 return activeState;
             }
         }
-        return new NoteState(note);
+        return new NoteSnapshot(note);
     }
 
     public boolean canUndo() {
@@ -477,10 +477,10 @@ public final class NoteEditorModel {
 
     private final class NoteStateChangeAction implements UndoableAction {
 
-        private final Map<EditorNote, NoteState> startStates;
-        private final Map<EditorNote, NoteState> endStates;
+        private final Map<EditorNote, NoteSnapshot> startStates;
+        private final Map<EditorNote, NoteSnapshot> endStates;
 
-        private NoteStateChangeAction(Map<EditorNote, NoteState> startStates, Map<EditorNote, NoteState> endStates) {
+        private NoteStateChangeAction(Map<EditorNote, NoteSnapshot> startStates, Map<EditorNote, NoteSnapshot> endStates) {
             this.startStates = new LinkedHashMap<>(startStates);
             this.endStates = new LinkedHashMap<>(endStates);
         }
@@ -495,10 +495,10 @@ public final class NoteEditorModel {
             applyStates(endStates);
         }
 
-        private void applyStates(Map<EditorNote, NoteState> states) {
+        private void applyStates(Map<EditorNote, NoteSnapshot> states) {
             for (var entry : states.entrySet()) {
                 EditorNote note = entry.getKey();
-                NoteState state = entry.getValue();
+                NoteSnapshot state = entry.getValue();
 
                 note.setMidiNote(state.midiNote());
                 note.setStartBeat(state.startBeat());

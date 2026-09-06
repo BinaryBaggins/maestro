@@ -9,6 +9,7 @@ import com.digero.maestro.noteeditor.model.DragMode;
 import com.digero.maestro.noteeditor.model.EditorNote;
 import com.digero.maestro.noteeditor.model.NoteEditorModel;
 import com.digero.maestro.noteeditor.model.NoteSelectionModel;
+import com.digero.maestro.noteeditor.model.NoteSnapshot;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -46,7 +47,7 @@ public class NoteGridPanel extends JPanel {
     private int dragStartY;
     private double dragStartBeat;
 
-    private Map<EditorNote, DragStartState> dragStartStates = Map.of();
+    private Map<EditorNote, NoteSnapshot> dragStartStates = Map.of();
 
     // Resizing state variables
     private double resizeOffsetBeats;
@@ -235,10 +236,10 @@ public class NoteGridPanel extends JPanel {
 
         dragNotes = new LinkedHashSet<>(selectionModel.getSelectedNotes());
 
-        Map<EditorNote, DragStartState> startStates = new LinkedHashMap<>();
+        Map<EditorNote, NoteSnapshot> startStates = new LinkedHashMap<>();
 
         for (EditorNote note : dragNotes) {
-            startStates.put(note, new DragStartState(note.getMidiNote(), note.getStartBeat(), note.getDurationBeats()));
+            startStates.put(note, new NoteSnapshot(note));
         }
 
         dragStartStates = startStates;
@@ -407,7 +408,7 @@ public class NoteGridPanel extends JPanel {
                 return candidateDelta;
             }
 
-            DragStartState movingState = dragStartStates.get(collision.movingNote());
+            NoteSnapshot movingState = dragStartStates.get(collision.movingNote());
 
             EditorNote blocker = collision.blockingNote();
 
@@ -449,7 +450,7 @@ public class NoteGridPanel extends JPanel {
         int minimumDelta = Integer.MIN_VALUE;
         int maximumDelta = Integer.MAX_VALUE;
 
-        for (DragStartState state : dragStartStates.values()) {
+        for (NoteSnapshot state : dragStartStates.values()) {
             minimumDelta = Math.max(minimumDelta, -state.midiNote());
             maximumDelta = Math.min(maximumDelta, NoteEditorLayout.MIDI_NOTE_COUNT - 1 - state.midiNote());
         }
@@ -460,7 +461,7 @@ public class NoteGridPanel extends JPanel {
     private double getMinimumGroupBeatDelta() {
         double minimumDelta = Double.NEGATIVE_INFINITY;
 
-        for (DragStartState state : dragStartStates.values()) {
+        for (NoteSnapshot state : dragStartStates.values()) {
             minimumDelta = Math.max(minimumDelta, -state.startBeat());
         }
 
@@ -469,7 +470,7 @@ public class NoteGridPanel extends JPanel {
 
     private GroupMoveCollision findGroupMoveCollision(int midiDelta, double beatDelta) {
         for (EditorNote movingNote : dragNotes) {
-            DragStartState state = dragStartStates.get(movingNote);
+            NoteSnapshot state = dragStartStates.get(movingNote);
             int targetMidiNote = state.midiNote() + midiDelta;
             double targetStartBeat = state.startBeat() + beatDelta;
             double targetEndBeat = targetStartBeat + state.durationBeats();
