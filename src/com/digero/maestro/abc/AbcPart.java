@@ -388,14 +388,14 @@ public class AbcPart implements AbcPartMetadataSource, NumberedAbcPart, IDiscard
 		}
 	}
 
-	public static AbcPart loadFromXml(AbcSong abcSong, Element ele, Version fileVersion, WarningHandler warningHandler) throws FileParseException {
+	public static AbcPart loadFromXml(AbcSong abcSong, Element ele, Version fileVersion, WarningHandler warningHandler, String filename) throws FileParseException {
 		AbcPart part = new AbcPart(abcSong);
-		part.initFromXml(ele, fileVersion, warningHandler);
+		part.initFromXml(ele, fileVersion, warningHandler, filename);
 		return part;
 	}
 
 	@SuppressWarnings("HardCodedStringLiteral")
-	private void initFromXml(Element ele, Version fileVersion, WarningHandler warningHandler) throws FileParseException {
+	private void initFromXml(Element ele, Version fileVersion, WarningHandler warningHandler, String filename) throws FileParseException {
 		try {
 			partNumber = SaveUtil.parseValue(ele, "@id", partNumber);
 			if (partNumber == 0) partNumber = 999;
@@ -512,7 +512,7 @@ public class AbcPart implements AbcPartMetadataSource, NumberedAbcPart, IDiscard
 					}
 				}
                 if (lastEnd > 200_000f) { // Limit to 200k bars to prevent OOM
-                    log.warning("Section endBar too large: " + lastEnd + ". Clamping to 200,000.");
+                    log.warning(filename+": Section endBar too large: " + lastEnd + ". Clamping to 200,000.");
                     lastEnd = 200_000f;
                 }
 				boolean[] booleanArray = new boolean[(int)(lastEnd) + 1];
@@ -671,15 +671,8 @@ public class AbcPart implements AbcPartMetadataSource, NumberedAbcPart, IDiscard
             // preview generation, do not want to trigger one for each part.
 			fireChangeEvent(AbcPartProperty.BASE_TRANSPOSE, false);
 		}
-		if (e.getProperty() == AbcSongProperty.MIX_TIMING_COMBINE_PRIORITIES
-				|| e.getProperty() == AbcSongProperty.MIX_TIMING) {
-            // TODO: Perhaps we should consider deleting this call
-            //       I might be missing something, but I do not think
-            //       it is needed. For example when open new project,
-            //       this gets fired once per part, even though the
-            //       track priorities themselves don't change.
-            //       For now I just set previewRelated to false.
-			fireChangeEvent(AbcPartProperty.TRACK_PRIORITY, false);
+		if (e.getProperty() == AbcSongProperty.TIMINGS_MULTI) {
+			//e.getSource().setMixDirty(true);
 		}
 	};
 

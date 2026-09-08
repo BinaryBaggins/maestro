@@ -226,6 +226,7 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
     private boolean fireMeterListeners = true;
     private boolean fireTempoListeners = true;
     private boolean fireDynaListeners = true;
+	private boolean fireTimingListeners = true;
     private JMenuItem openItem;
 
 	public ProjectFrame() {
@@ -605,9 +606,10 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 		return new SongExportSettingsListener() {
 			@Override
 			public void transposeSettingsChanged() {
-				if (abcSong != null && fireTransposeListeners)
-                	abcSong.setTranspose(songExportSettingsPanel.getTranspose());
-            	refreshPreviewSequence(false);
+				if (abcSong != null && fireTransposeListeners) {
+					abcSong.setTranspose(songExportSettingsPanel.getTranspose());
+					refreshPreviewSequence(false);
+				}
 			}
 
 			@Override
@@ -617,7 +619,10 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 						abcSong.setTempoBPM(songExportSettingsPanel.getTempo());
 
 					abcSequencer.setTempoFactor(abcSong.getTempoFactor());
-					refreshPreviewSequence(false);
+
+					if (fireTempoListeners)
+						refreshPreviewSequence(false);
+
 				} else {
 					abcSequencer.setTempoFactor(1.0f);
 				}
@@ -641,11 +646,12 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 
 			@Override
 			public void timeSignatureChanged() {
-				if (abcSong != null && fireMeterListeners)
+				if (abcSong != null && fireMeterListeners) {
 					abcSong.setTimeSignature(songExportSettingsPanel.getTimeSignature());
 
-				// Breaking up of long notes can depend on time signature for bar lines.
-				refreshPreviewSequence(false);				
+					// Breaking up of long notes can depend on time signature for bar lines.
+					refreshPreviewSequence(false);
+				}
 			}
 
 			@Override
@@ -659,18 +665,20 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 				TimingMode mode = songExportSettingsPanel.getTimingMode();
             	songExportSettingsPanel.setTimingModeToolTipText(mode.getTooltip());
 
-            	if (abcSong != null)
-                	abcSong.setTimings(mode.organic, mode.multistage, mode.mixTimings, mode.swing, mode.priority, mode.upgraded);
+				if (abcSong != null && fireTimingListeners) {
+					abcSong.setTimings(mode.organic, mode.multistage, mode.mixTimings, mode.swing, mode.priority, mode.upgraded);
 
-            	refreshPreviewSequence(false);
+					refreshPreviewSequence(false);
+				}
 			}
 
 			@Override
 			public void dynamicChordModeChanged() {
 				if (abcSong != null) {
-					if (fireDynaListeners)
+					if (fireDynaListeners) {
 						abcSong.dynamicsMethod = songExportSettingsPanel.getDynamicChordMode();
-					refreshPreviewSequence(false);
+						refreshPreviewSequence(false);
+					}
 				}
 			}
 
@@ -1930,10 +1938,6 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 			case TEMPO_FACTOR:
 				if (songExportSettingsPanel.getTempo() != abcSong.getTempoBPM())
 					setTempoWithoutEvent(abcSong.getTempoBPM());
-
-				//not needed as listeners on spinner will refresh
-				//refreshPreviewSequence(false);
-
 				break;
 			case TRANSPOSE:
 				setTransposeWithoutEvent(abcSong.getTranspose());
@@ -1947,15 +1951,10 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 			case TIME_SIGNATURE:
 				setTimeSignatureWithoutEvent(abcSong.getTimeSignature());
 				break;
-			case ORGANIC:
-			case TRIPLET_TIMING:
-			case MIX_TIMING:
-			case MIX_TIMING_COMBINE_PRIORITIES:
-				break;
 			case TIMINGS_MULTI:
-				// one or more timing settings were change in abc song
-				// setting on model dont fire action listener
-				songExportSettingsPanel.setTimingMode(
+				// one or more timing settings were changed in abc song
+				// that only happens at load project or from Abc Auto Exporter, which wont have this class loaded.
+				setTimingModeWithoutEvent(
 					TimingMode.getInstance(
 						abcSong.isOrganic(),
 						abcSong.isOrganic2(),
@@ -2136,6 +2135,7 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
      * Will not activate the changelistener to set abcSong
      */
     public void setTransposeWithoutEvent(int transpose) {
+		assert SwingUtilities.isEventDispatchThread():"Called from non-swing thread. Listener boolean must be a volatile instead.";
         fireTransposeListeners = false;
         songExportSettingsPanel.setTranspose(transpose);
         fireTransposeListeners = true;
@@ -2145,6 +2145,7 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
      * Will not activate the changelistener to set abcSong
      */
     private void setTimeSignatureWithoutEvent(TimeSignature ts) {
+		assert SwingUtilities.isEventDispatchThread():"Called from non-swing thread. Listener boolean must be a volatile instead.";
         fireMeterListeners = false;
         songExportSettingsPanel.setTimeSignature(ts);
         fireMeterListeners = true;
@@ -2154,6 +2155,7 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
      * Will not activate the changelistener to set abcSong
      */
     private void setTempoWithoutEvent(int tempoBPM) {
+		assert SwingUtilities.isEventDispatchThread():"Called from non-swing thread. Listener boolean must be a volatile instead.";
         fireTempoListeners = false;
         songExportSettingsPanel.setTempo(tempoBPM);
         fireTempoListeners = true;
@@ -2163,10 +2165,22 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
      * Will not activate the changelistener to set abcSong
      */
     private void setDynamicChordModeWithoutEvent(Chord.CalcDynamics dyna) {
+		assert SwingUtilities.isEventDispatchThread():"Called from non-swing thread. Listener boolean must be a volatile instead.";
         fireDynaListeners = false;
         songExportSettingsPanel.setDynamicChordMode(dyna);
         fireDynaListeners = true;
     }
+
+	/**
+	 * Will not activate the changelistener to set abcSong
+	 * nor fire preview rebuild
+	 */
+	private void setTimingModeWithoutEvent(TimingMode mode) {
+		assert SwingUtilities.isEventDispatchThread():"Called from non-swing thread. Listener boolean must be a volatile instead.";
+		fireTimingListeners = false;
+		songExportSettingsPanel.setTimingMode(mode);
+		fireTimingListeners = true;
+	}
 
 	private enum CloseProjectMode {
     	NORMAL,
@@ -2197,9 +2211,6 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 	 * @return true if it was closed
 	 */
 	private boolean closeProject(CloseProjectMode mode) {
-		boolean skipSequencerReset = mode == CloseProjectMode.SHUTDOWN;
-		SectionEditor.clearClipboard();
-		TrackPanel.clearDrumClipboard();
 		sequencer.stop();
 		abcSequencer.stop();
 
@@ -2223,6 +2234,10 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 		}
 		
 		log.fine("Closing project");
+
+		boolean skipSequencerReset = mode == CloseProjectMode.SHUTDOWN;
+		SectionEditor.clearClipboard();
+		TrackPanel.clearDrumClipboard();
 
 		hideEditsCheckbox.setSelected(false);//best to have this before song is set to null
 
@@ -2268,12 +2283,12 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 
 		clearSongInfoPanel();
 
-		songExportSettingsPanel.setTranspose(0);
-		songExportSettingsPanel.setTempo(MidiConstants.DEFAULT_TEMPO_BPM);
+		setTransposeWithoutEvent(0);
+		setTempoWithoutEvent(MidiConstants.DEFAULT_TEMPO_BPM);
 		songExportSettingsPanel.setKeySignature(KeySignature.C_MAJOR);
-		songExportSettingsPanel.setTimeSignature(TimeSignature.FOUR_FOUR);
-		songExportSettingsPanel.setTimingMode(TimingMode.MIX);
-		songExportSettingsPanel.setDynamicChordMode(AbcSong.dynamicsMethodDefault);
+		setTimeSignatureWithoutEvent(TimeSignature.FOUR_FOUR);
+		setTimingModeWithoutEvent(TimingMode.getFromSettings(saveSettings.defaultTiming));
+		setDynamicChordModeWithoutEvent(AbcSong.dynamicsMethodDefault);
 		songExportSettingsPanel.setCountOnlyTempoChangesFromFirstTrackSelected(false);
 
 		midiBarLabel.setBarNumberCache(null);
@@ -2381,8 +2396,7 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 			songExportSettingsPanel.setKeySignature(abcSong.getKeySignature());
 			setTimeSignatureWithoutEvent(abcSong.getTimeSignature());
 
-            // setting on model dont fire action listener
-			songExportSettingsPanel.setTimingMode(
+			setTimingModeWithoutEvent(
 				TimingMode.getInstance(
 					abcSong.isOrganic(),
 					abcSong.isOrganic2(),
@@ -2908,7 +2922,17 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 			abcSequencer.setRunning(abcRunning);
             previewSequenceInfo.histogram.setSequencer(abcSequencer);
             if (previewSequenceInfo.dissonance != null) previewSequenceInfo.dissonance.setSequencer(abcSequencer);
+			PolyphonyHistogram oldHisto = arrangementView.getHistogram();
+			if (oldHisto != null && oldHisto != previewSequenceInfo.histogram) {
+				// remove listeners
+				oldHisto.setSequencer(null);
+			}
             arrangementView.setHistogram(previewSequenceInfo.histogram);
+			DissonanceDetector oldDisso = arrangementView.getDissonance();
+			if (oldDisso != null && oldDisso != previewSequenceInfo.dissonance) {
+				// remove listeners
+				oldDisso.setSequencer(null);
+			}
             arrangementView.setDissonance(previewSequenceInfo.dissonance);
             histogram = previewSequenceInfo.histogram;
             updateStereo();// we call this here to benefit PanVisualizerPanel
@@ -2937,6 +2961,10 @@ public class ProjectFrame extends JFrame implements TableLayoutConstants, ICompi
 		// Each rebuild request gets a new monotonic id. The preview counts as current
 		// only once applyPreview stamps this id into previewAppliedSeq.
 		final long requestSeq = ++previewRequestSeq;
+		if (log.isLoggable(Level.FINE)) {
+			log.log(Level.FINE, "refreshPreviewSequence #" + requestSeq + " immediate=" + immediate,
+					new Throwable("preview rebuild call site"));
+		}
 
         PreviewExportWorker oldWorker = null;
         if (previewWorker != null) {
